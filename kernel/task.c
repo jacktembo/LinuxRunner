@@ -370,7 +370,13 @@ void task_run_current() {
     native_offload_freeze_registry();
     struct cpu_state *cpu = &current->cpu;
     struct tlb *tlb = calloc(1, sizeof(struct tlb));
-    if (!tlb) die("could not allocate TLB");
+    if (!tlb) {
+        // Out of host memory: end this Linux process the way the Linux OOM
+        // killer would (SIGKILL) instead of aborting the whole app, which
+        // took every other process and the desktop down with it.
+        printk("task_run_current: out of memory for the TLB; killing pid %d\n", current->pid);
+        do_exit_group(SIGKILL_);
+    }
 
     // Register cleanup so the TLB (and its fiber_frame) is freed even when
     // the thread exits via pthread_exit() from deep in handle_interrupt()

@@ -6,5 +6,12 @@
 	<array>
 		<string>$(PRODUCT_APP_GROUP_IDENTIFIER)</string>
 	</array>
+	<!-- A Linux desktop runs dozens of guest processes, each with its own
+	     address space and translation caches; the default iOS limits run out
+	     (crash reports: "could not allocate TLB", allocation failures). -->
+	<key>com.apple.developer.kernel.extended-virtual-addressing</key>
+	<true/>
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
 </dict>
 </plist>

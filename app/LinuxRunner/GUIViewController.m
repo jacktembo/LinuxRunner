@@ -171,6 +171,9 @@ static id<LRCursorDisplay> LRExternalCursorDisplay(void);
 @property LRMetalFramebufferView *metal;
 @property NSData *latestPixels;
 @property BOOL presentationSuppressed;
+// The desktop is shown on an external display: mouse input belongs to it,
+// whatever the phone currently shows (placeholder, trackpad, Home).
+@property BOOL externalOutputTarget;
 @property(nonatomic) BOOL relativeTouchpad;
 @property UILabel *touchpadHint;
 @property CGPoint touchpadDragPoint;
@@ -809,7 +812,12 @@ static const NSInteger LRDockPortraitOnlyTag=7803;   // DeX, Settings, More, Pow
     [super touchesCancelled:touches withEvent:event];
 }
 - (BOOL)gcPressTargetsSurface {
-    if(!self.window.isKeyWindow||self.hidden||!_pixelWidth||!_pixelHeight)return NO;
+    if(!_pixelWidth||!_pixelHeight)return NO;
+    // On an external display the phone's view hierarchy says nothing about
+    // the target: the surface can be out of the window (viewer closed) or
+    // covered by the trackpad. Previously every press was dropped there.
+    if(_externalOutputTarget)return YES;
+    if(!self.window.isKeyWindow||self.hidden)return NO;
     // Global GC callbacks must not click through a native settings sheet.
     for(UIResponder *r=self.nextResponder;r;r=r.nextResponder)if([r isKindOfClass:UIViewController.class]){
         UIViewController *controller=(UIViewController *)r;
@@ -818,14 +826,19 @@ static const NSInteger LRDockPortraitOnlyTag=7803;   // DeX, Settings, More, Pow
     CGRect image=_image.frame;
     CGPoint point=CGPointMake(image.origin.x+(CGFloat)_pointerX/_pixelWidth*image.size.width,
                              image.origin.y+(CGFloat)_pointerY/_pixelHeight*image.size.height);
-    if(!CGRectContainsPoint(self.bounds,point))return NO;
+    // Zoomed in, the pointer can be outside the visible area; nothing native
+    // can be under it there, so the click still belongs to Linux.
+    if(!CGRectContainsPoint(self.bounds,point))return YES;
     UIView *hit=[self.window hitTest:[self convertPoint:point toView:self.window] withEvent:nil];
     return hit==self||[hit isDescendantOfView:self];
 }
 - (void)gcButton:(int)button bit:(uint8_t)bit pressed:(BOOL)pressed{
     [self countInput:[NSString stringWithFormat:@"gc.button%d.%@",button,pressed?@"down":@"up"]];
-    if(!lr_pointer_forward_gc_button([self pointerEnvironment],button,pressed,(_mouseButtons&bit)!=0,
-                                    pressed?[self gcPressTargetsSurface]:NO)){
+    // External display: the mouse's own buttons always drive it (an AssistiveTouch
+    // pointer lives on the phone screen, not on the monitor).
+    BOOL forward=_externalOutputTarget?(pressed?[self gcPressTargetsSurface]:(_mouseButtons&bit)!=0)
+        :lr_pointer_forward_gc_button([self pointerEnvironment],button,pressed,(_mouseButtons&bit)!=0,pressed?[self gcPressTargetsSurface]:NO);
+    if(!forward){
         [self countInput:@"gc.button.ignored-uikit-or-native-target"];return;
     }
     [self mouseButton:bit pressed:pressed];
@@ -833,7 +846,7 @@ static const NSInteger LRDockPortraitOnlyTag=7803;   // DeX, Settings, More, Pow
 - (void)sendMouse{if(_pixelWidth&&_pixelHeight)[self sendPointerFromEventTime:GCMouse.current.mouseInput.lastEventTimestamp buttons:_mouseButtons|_pointerTouchButton];}
 - (void)mouseMovedX:(float)dx y:(float)dy{
     [self countInput:@"gc.motion"];
-    if(!lr_pointer_use_gc_motion([self pointerEnvironment])){return;}
+    if(!_externalOutputTarget&&!lr_pointer_use_gc_motion([self pointerEnvironment])){return;}
     if(!_pixelWidth||!_pixelHeight)return;
     // Device points to framebuffer pixels at the current zoom; GCMouse reports
     // upward motion as positive y.
@@ -1197,6 +1210,7 @@ static NSString *DesktopDegradedNotice(NSString *state);
     if(!NSThread.isMainThread){__weak typeof(self) weak=self;dispatch_async(dispatch_get_main_queue(),^{[weak externalDisplayChanged:nil];});return;}
     if(!_desktopMode)return;
     BOOL active=[self externalOutputActive];
+    _surface.externalOutputTarget=active;
     if(!active){if(_surface.relativeTouchpad)_trackpadRequested=NO;_surface.relativeTouchpad=NO;[self resetModifierButtons];}
     if(!active)[LRCurrentExternalDisplay showPlaceholder];
     if(!lr_keep_desktop_transport(_viewerVisible,LRExternalOutputEnabled(),LRCurrentExternalDisplay!=nil)){
