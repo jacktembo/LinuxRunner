@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<!-- Original LinuxRunner geometry; no fonts, trademarks or external assets. -->
-<defs><linearGradient id="navy" x2="0.7" y2="1"><stop stop-color="#0b1423"/><stop offset="1" stop-color="#172f46"/></linearGradient></defs>
-<path fill="url(#navy)" d="M0 0h1024v1024H0z"/>
-<path d="M385 290H270v444h115" fill="none" stroke="#eff6ff" stroke-width="64" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="m515 305 210 207-210 207" fill="none" stroke="#63b9f2" stroke-width="64" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M650 765h115" fill="none" stroke="#8adeef" stroke-width="42" stroke-linecap="round"/>
+<!-- LinuxRunner app icon: a >_ prompt with speed lines. Full bleed; iOS applies the corner mask. Original geometry, no fonts or external assets. -->
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A1F"/><stop offset="1" stop-color="#E0323C"/></linearGradient></defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<g stroke="#fff" stroke-linecap="round" fill="none"><path d="M178 404H292" stroke-width="40" opacity=".55"/><path d="M128 512H292" stroke-width="40" opacity=".8"/><path d="M178 620H292" stroke-width="40" opacity=".55"/><path d="M392 300L604 512L392 724" stroke-width="100" stroke-linejoin="round"/></g><rect x="642" y="650" width="222" height="80" rx="22" fill="#fff"/>
 </svg>
