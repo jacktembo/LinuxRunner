@@ -417,6 +417,11 @@ struct ManagerView: View {
     @State private var showFiles = false
     @Environment(\.scenePhase) private var phase
 
+    init(terminal: TerminalViewController) {
+        self.terminal = terminal
+        DSAppearance.applyBarAppearance()
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationView { home }.navigationViewStyle(.stack)
@@ -427,7 +432,8 @@ struct ManagerView: View {
                 .tabItem { Label("Settings", systemImage: "slider.horizontal.3") }.tag(3)
         }
         .overlay(alignment: .bottom) { InstallProgressCard() }
-        .accentColor(Color(red: 0.36, green: 0.68, blue: 0.98))
+        .accentColor(DS.Palette.accent)
+        .tint(DS.Palette.accent)
         .preferredColorScheme(appearance == "system" ? nil : appearance == "light" ? .light : .dark)
         .onAppear {
             LongTaskCenter.shared.start()
@@ -544,66 +550,37 @@ struct ManagerView: View {
         return desktopAlive ? .starting : .stopped
     }
     private var home: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("LinuxRunner").font(.system(size: 30, weight: .bold, design: .rounded))
-                        Text(activeEnvironment?.name ?? "No Linux selected").font(.subheadline).foregroundColor(.secondary).lineLimit(1)
-                    }
-                    Spacer()
-                    HomeStatus(phase: desktopPhase, open: LRRuntimeBridge.isRunning() ? openDesktop : nil, stop: desktopAlive ? { confirmStopDesktop = true } : nil)
-                }
-                DesktopPreviewCard(phase: desktopPhase, stateText: desktopSummary["state"] as? String ?? "", open: LRRuntimeBridge.isRunning() ? openDesktop : startRuntime)
-                primaryAction
-                if let warning = desktopUserWarning {
-                    Label(warning, systemImage: "person.crop.circle.badge.exclamationmark").font(.footnote).foregroundColor(.orange)
-                        .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.12)))
-                }
-                HStack(spacing: 14) {
-                    homeTile("Terminal", "terminal.fill", [.gray, .black], large: true, enabled: activeEnvironment != nil) { if let environment = activeEnvironment { openTerminal(environment) } }
-                    NavigationLink(destination: AppStoreView(manager: manager, run: run)) { HomeTile(title: "App Store", symbol: "bag.fill", colors: [.blue, .indigo], large: true) }
-                        .buttonStyle(HomeTileStyle()).disabled(activeEnvironment == nil).accessibilityIdentifier("App Store")
-                }
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 4), spacing: 16) {
-                    if let environment = activeEnvironment {
-                        NavigationLink(destination: files(environment)) { HomeTile(title: "Files", symbol: "folder.fill", colors: [.cyan, .blue]) }.buttonStyle(HomeTileStyle())
-                    } else { HomeTile(title: "Files", symbol: "folder.fill", colors: [.cyan, .blue]).opacity(0.4) }
-                    NavigationLink(destination: GraphicsSettingsView()) { HomeTile(title: "GPU", symbol: "cpu.fill", colors: [.green, .teal], badge: gpuInUse) }.buttonStyle(HomeTileStyle())
-                    NavigationLink(destination: DevicesView()) { HomeTile(title: "Devices", symbol: "cable.connector", colors: [.orange, .red]) }.buttonStyle(HomeTileStyle())
-                    NavigationLink(destination: GuestCrashListView()) { HomeTile(title: "Diagnostics", symbol: "stethoscope", colors: [.pink, .purple]) }.buttonStyle(HomeTileStyle())
-                }
-                HomeTasks(center: LongTaskCenter.shared)
-                if !LRRuntimeBridge.isRunning() && !startingRuntime {
-                    Text(LRRuntimeBridge.runtimeStatus()).font(.footnote).foregroundColor(.secondary)
-                }
-            }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 96)
-        }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationBarHidden(true)
-        .refreshable { manager.refresh(); desktopSummary = LRRuntimeBridge.desktopSessionSummary() }
-    }
-    @ViewBuilder private var primaryAction: some View {
         let running = LRRuntimeBridge.isRunning()
-        Button(action: running ? openDesktop : startRuntime) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.18)).frame(width: 44, height: 44)
-                    if startingRuntime { ProgressView().tint(.white) } else { Image(systemName: running ? "desktopcomputer" : "power").font(.title3.weight(.semibold)) }
+        let environment = activeEnvironment
+        return HomeScreen(
+            model: HomeModel(
+                environmentName: environment?.name,
+                distributionID: environment?.distributionID,
+                environmentDetail: environment.map { [$0.rootfsVersion, "ARM64"].filter { !$0.isEmpty }.joined(separator: " · ") },
+                phase: desktopPhase,
+                stateText: desktopSummary["state"] as? String ?? "",
+                running: running,
+                starting: startingRuntime,
+                desktopAlive: desktopAlive,
+                canStart: LRRuntimeBridge.canStartRuntime(),
+                gpuInUse: gpuInUse,
+                warning: desktopUserWarning,
+                runtimeStatus: !running && !startingRuntime ? LRRuntimeBridge.runtimeStatus() : nil),
+            primary: running ? openDesktop : startRuntime,
+            stop: desktopAlive ? { confirmStopDesktop = true } : nil,
+            openTerminal: { if let environment = activeEnvironment { openTerminal(environment) } },
+            addDistribution: { selectedTab = 1 },
+            destination: { target in
+                switch target {
+                case .appStore: return AnyView(AppStoreView(manager: manager, run: run))
+                case .files: return activeEnvironment.map { AnyView(files($0)) } ?? AnyView(EmptyView())
+                case .gpu: return AnyView(GraphicsSettingsView())
+                case .devices: return AnyView(DevicesView())
+                case .diagnostics: return AnyView(GuestCrashListView())
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(running ? (desktopAlive ? "Resume Desktop" : "Open Desktop") : startingRuntime ? "Starting Linux…" : "Start Linux").font(.headline)
-                    Text(running ? (desktopPhase == .starting ? "Starting the desktop" : desktopAlive ? "Continue your Linux session" : "Start a graphical session") : "Boot the Linux runtime").font(.caption).opacity(0.85)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.headline).opacity(0.7)
-            }
-            .foregroundColor(.white).padding(16)
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.16, green: 0.42, blue: 0.85), Color(red: 0.36, green: 0.24, blue: 0.80)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-        }
-        .buttonStyle(HomeTileStyle())
-        .disabled(running ? false : (startingRuntime || !LRRuntimeBridge.canStartRuntime()))
-        .accessibilityIdentifier(running ? "Open Desktop" : "Start Linux Runtime")
+            },
+            tasks: { HomeTasks(center: LongTaskCenter.shared) })
+        .refreshable { manager.refresh(); desktopSummary = LRRuntimeBridge.desktopSessionSummary() }
     }
     /// Green only when applications really use Metal: the last session routed
     /// them to the Metal bridge, or GPU mode on a distribution whose Mesa
@@ -619,10 +596,6 @@ struct ManagerView: View {
         if user != LRRuntimeBridge.defaultLinuxUser() { return "The selected Linux user changed. Stop this desktop before launching apps as the new user." }
         return nil
     }
-    private func homeTile(_ title: String, _ symbol: String, _ colors: [Color], large: Bool = false, enabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(action: action) { HomeTile(title: title, symbol: symbol, colors: colors, large: large) }
-            .buttonStyle(HomeTileStyle()).disabled(!enabled).accessibilityIdentifier(title)
-    }
     private func desktopName(_ environment: LinuxEnvironment) -> String? {
         guard let id = UserDefaults.standard.string(forKey: "LinuxRunnerDesktop.environment." + environment.rootfsName) else { return nil }
         return DesktopCatalog.option(id).title
@@ -632,52 +605,24 @@ struct ManagerView: View {
         setupStep = "install"; setup = true
     }
     private var distributions: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Installed").font(.title3.weight(.semibold))
-                    if manager.environments.isEmpty {
-                        Text("No Linux distribution yet. Choose one below.").font(.subheadline).foregroundColor(.secondary)
-                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
-                    }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
-                        ForEach(manager.environments) { environment in
-                            NavigationLink(destination: environmentDetail(environment)) {
-                                InstalledDistributionCard(name: environment.name, distributionID: environment.distributionID,
-                                    version: environment.rootfsVersion, size: manager.size(environment), desktop: desktopName(environment),
-                                    active: manager.active(environment), nextLaunch: LRRuntimeBridge.nextRootName() == environment.rootfsName && !manager.active(environment))
-                            }
-                            .buttonStyle(HomeTileStyle())
-                            .contextMenu {
-                                if !manager.active(environment) { Button { LRRuntimeBridge.setNextRootName(environment.rootfsName); manager.refresh() } label: { Label("Use on Next Launch", systemImage: "arrow.uturn.right") } }
-                                Button(role: .destructive) { pendingDistributionDeletion = environment } label: { Label("Delete…", systemImage: "trash") }
-                                    .disabled(manager.busy || LRRuntimeBridge.environmentDeletionUnavailableReason(environment.rootfsName) != nil)
-                            }
-                        }
-                    }
-                }
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Add a Distribution").font(.title3.weight(.semibold))
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 158), spacing: 14)], spacing: 14) {
-                        ForEach(CatalogDistribution.all) { item in
-                            Button { startSetup(item.id) } label: {
-                                CatalogDistributionCard(item: item, installed: manager.environments.contains { $0.distributionID == item.id })
-                            }
-                            .buttonStyle(HomeTileStyle()).disabled(manager.busy).accessibilityIdentifier("Install \(item.name)")
-                        }
-                    }
-                    if manager.busy { ProgressView("Preparing environment…") }
-                }
-                Text("Each distribution keeps its own packages and files. One runs at a time; switching takes effect when LinuxRunner is reopened.")
-                    .font(.footnote).foregroundColor(.secondary)
-            }
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 96)
-            .frame(maxWidth: 980).frame(maxWidth: .infinity)
-        }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("Distributions")
-        .toolbar { Button { manager.refresh() } label: { Image(systemName: "arrow.clockwise") }.accessibilityLabel("Refresh Distributions") }
+        DistributionsScreen(
+            installed: manager.environments.map { environment in
+                InstalledDistributionItem(
+                    id: environment.rootfsName, name: environment.name, distributionID: environment.distributionID,
+                    version: environment.rootfsVersion, size: manager.size(environment), desktop: desktopName(environment),
+                    active: manager.active(environment),
+                    nextLaunch: LRRuntimeBridge.nextRootName() == environment.rootfsName && !manager.active(environment),
+                    deletionBlocked: LRRuntimeBridge.environmentDeletionUnavailableReason(environment.rootfsName) != nil)
+            },
+            busy: manager.busy,
+            detail: { item in environment(for: item).map { AnyView(environmentDetail($0)) } ?? AnyView(EmptyView()) },
+            install: startSetup,
+            useNextLaunch: { item in LRRuntimeBridge.setNextRootName(item.id); manager.refresh() },
+            delete: { item in pendingDistributionDeletion = environment(for: item) },
+            refresh: { manager.refresh() })
+    }
+    private func environment(for item: InstalledDistributionItem) -> LinuxEnvironment? {
+        manager.environments.first { $0.rootfsName == item.id }
     }
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
@@ -686,14 +631,17 @@ struct ManagerView: View {
     private var preferences: some View {
         List {
             Section {
-                HStack(spacing: 14) {
-                    DistroBadge(distributionID: activeEnvironment?.distributionID, size: 56)
+                HStack(spacing: DS.Space.md) {
+                    DSBrandMark(size: 56)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("LinuxRunner").font(.title3.weight(.semibold))
-                        Text(appVersion).font(.subheadline).foregroundColor(.secondary)
-                        Text(activeEnvironment.map { "\($0.name) · ARM64" } ?? "No Linux running").font(.caption).foregroundColor(.secondary)
+                        Text("LinuxRunner").font(DS.Font.sectionTitle).foregroundColor(DS.Palette.textPrimary)
+                        Text(appVersion).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary)
+                        HStack(spacing: 6) {
+                            Circle().fill(activeEnvironment == nil ? DS.Palette.textTertiary : DS.Palette.success).frame(width: 6, height: 6)
+                            Text(activeEnvironment.map { "\($0.name) · ARM64" } ?? "No Linux running").font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
+                        }
                     }
-                }.padding(.vertical, 6)
+                }.padding(.vertical, DS.Space.xs)
             }
             Section {
                 Picker(selection: $appearance) { Text("Dark").tag("dark"); Text("Light").tag("light"); Text("System").tag("system") } label: { SettingsLabel("Appearance", "circle.lefthalf.filled", .indigo) }
@@ -743,7 +691,7 @@ struct ManagerView: View {
             Section("About") {
                 NavigationLink(destination: LinuxRunnerAboutView()) { SettingsLabel("About LinuxRunner", "info.circle.fill", .blue) }
             }
-        }.listStyle(.insetGrouped).navigationTitle("Settings")
+        }.listStyle(.insetGrouped).dsListStyle().navigationTitle("Settings")
     }
     private func openTerminal(_ environment: LinuxEnvironment) {
         guard manager.active(environment) else { return }
@@ -838,7 +786,7 @@ struct ManagerView: View {
                 Text(LRRuntimeBridge.environmentDeletionUnavailableReason(environment.rootfsName) ?? "Deletes this distribution's packages and files. Export important files first.")
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.insetGrouped).dsListStyle()
         .navigationTitle(environment.name).navigationBarTitleDisplayMode(.inline)
     }
     private func detailRow(_ title: String, _ value: String) -> some View {
@@ -2973,42 +2921,49 @@ struct InstallProgressCard: View {
     private func clock(_ seconds: Double) -> String { String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60) }
     var body: some View {
         if let state = monitor.state {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: state.phase == "failed" ? "exclamationmark.triangle.fill" : state.phase == "succeeded" ? "checkmark.circle.fill" : "arrow.down.circle")
-                        .foregroundColor(state.phase == "failed" ? .orange : state.phase == "succeeded" ? .green : .accentColor)
-                        .accessibilityHidden(true)
-                    Text(state.title).font(.headline)
-                    Spacer()
-                    Text(clock(state.elapsed)).font(.caption.monospacedDigit()).foregroundColor(.secondary).accessibilityLabel("Elapsed \(Int(state.elapsed)) seconds")
-                }
-                if state.phase == "succeeded" {
-                    Text("Installation complete").font(.subheadline)
-                } else {
-                    Text(state.phase == "failed" ? "Stopped at: \(state.stage)" : "Current step: \(state.stage)").font(.subheadline)
-                    if state.phase == "running" {
-                        if state.fraction >= 0 {
-                            ProgressView(value: state.fraction).accessibilityValue("\(Int(state.fraction * 100)) percent")
-                            Text("\(Int(state.fraction * 100)) %").font(.caption.monospacedDigit()).foregroundColor(.secondary)
-                        } else {
-                            ProgressView().frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        if !state.detail.isEmpty { Text(state.detail).font(.caption).foregroundColor(.secondary).lineLimit(2) }
-                        Text("Please keep LinuxRunner open.").font(.caption).foregroundColor(.secondary)
+            let tone: DS.Tone = state.phase == "failed" ? .danger : state.phase == "succeeded" ? .success : .accent
+            VStack(alignment: .leading, spacing: DS.Space.sm) {
+                HStack(spacing: DS.Space.sm) {
+                    DSIconTile(symbol: state.phase == "failed" ? "exclamationmark.triangle" : state.phase == "succeeded" ? "checkmark" : "arrow.down", tone: tone, size: 32)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(state.title).font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary).lineLimit(1)
+                        Text(state.phase == "succeeded" ? "Installation complete" : state.phase == "failed" ? "Stopped at: \(state.stage)" : state.stage)
+                            .font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(2)
                     }
-                    if let error = state.error {
-                        Text(error).font(.footnote).foregroundColor(.orange).fixedSize(horizontal: false, vertical: true)
-                        if let log = state.log, !log.isEmpty {
-                            Button(showLog ? "Hide Details" : "Show Details") { showLog.toggle() }.font(.footnote)
-                            if showLog { ScrollView { Text(log).font(.caption2.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 160) }
+                    Spacer(minLength: DS.Space.xs)
+                    Text(clock(state.elapsed)).font(DS.Font.mono).foregroundColor(DS.Palette.textTertiary).accessibilityLabel("Elapsed \(Int(state.elapsed)) seconds")
+                }
+                if state.phase == "running" {
+                    if state.fraction >= 0 {
+                        HStack(spacing: DS.Space.sm) {
+                            ProgressView(value: state.fraction).tint(DS.Palette.accent).accessibilityValue("\(Int(state.fraction * 100)) percent")
+                            Text("\(Int(state.fraction * 100))%").font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).frame(minWidth: 36, alignment: .trailing)
                         }
-                        Button("Dismiss") { monitor.dismiss() }.font(.footnote)
+                    } else {
+                        ProgressView().tint(DS.Palette.accent).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if !state.detail.isEmpty { Text(state.detail).font(DS.Font.monoSmall).foregroundColor(DS.Palette.textSecondary).lineLimit(2) }
+                    Text("Keep LinuxRunner open until this finishes.").font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary)
+                }
+                if let error = state.error {
+                    DSNotice(text: error, symbol: "exclamationmark.triangle.fill", tone: .danger)
+                    if showLog, let log = state.log, !log.isEmpty {
+                        ScrollView { Text(log).font(.caption2.monospaced()).foregroundColor(DS.Palette.textSecondary).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                            .frame(maxHeight: 160).padding(DS.Space.xs).background(RoundedRectangle.ds(DS.Radius.sm).fill(DS.Palette.surfaceRaised))
+                    }
+                    HStack(spacing: DS.Space.xs) {
+                        if let log = state.log, !log.isEmpty {
+                            Button(showLog ? "Hide Details" : "Show Details") { showLog.toggle() }.buttonStyle(DSButtonStyle(.secondary, size: .small))
+                        }
+                        Spacer()
+                        Button("Dismiss") { monitor.dismiss() }.buttonStyle(DSButtonStyle(.tertiary, size: .small))
                     }
                 }
             }
-            .padding(14)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .padding(.horizontal, 12).padding(.bottom, 56)
+            .dsCard(padding: DS.Space.md)
+            .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
+            .padding(.horizontal, DS.Space.sm).padding(.bottom, 56)
+            .frame(maxWidth: 560)
             .accessibilityElement(children: .contain)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }

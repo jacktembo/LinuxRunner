@@ -33,6 +33,7 @@
 		1C1100000000000000000F06 /* BluetoothSerialView.swift */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000F06; };
 		1C1100000000000000000F05 /* LongTaskCenter.swift */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000F05; };
 		1C1100000000000000000F04 /* HomeComponents.swift */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000F04; };
+		1C110000000000000000D551 /* DesignSystem.swift */ = {isa = PBXBuildFile; fileRef = 1C120000000000000000D551; };
 		1C1100000000000000000F03 /* AppStoreView.swift */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000F03; };
 		1C1100000000000000000B03 /* SteamOSSupport.bundle */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000B03; };
 		1C1100000000000000000B04 /* DistroLogos.bundle */ = {isa = PBXBuildFile; fileRef = 1C1200000000000000000B04; };
@@ -582,6 +583,7 @@
 		1C1200000000000000000F06 /* BluetoothSerialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/BluetoothSerialView.swift; sourceTree = SOURCE_ROOT; };
 		1C1200000000000000000F05 /* LongTaskCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/LongTaskCenter.swift; sourceTree = SOURCE_ROOT; };
 		1C1200000000000000000F04 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/HomeComponents.swift; sourceTree = SOURCE_ROOT; };
+		1C120000000000000000D551 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/DesignSystem.swift; sourceTree = SOURCE_ROOT; };
 		1C1200000000000000000F03 /* AppStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = app/LinuxRunner/AppStoreView.swift; sourceTree = SOURCE_ROOT; };
 		1C1200000000000000000B03 /* SteamOSSupport.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = app/LinuxRunner/SteamOSSupport.bundle; sourceTree = SOURCE_ROOT; };
 		1C1200000000000000000B04 /* DistroLogos.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = app/LinuxRunner/DistroLogos.bundle; sourceTree = SOURCE_ROOT; };
@@ -1260,6 +1262,7 @@
 				1C1200000000000000000F06 /* BluetoothSerialView.swift */,
 				1C1200000000000000000F05 /* LongTaskCenter.swift */,
 				1C1200000000000000000F04 /* HomeComponents.swift */,
+				1C120000000000000000D551 /* DesignSystem.swift */,
 				1C1200000000000000000F03 /* AppStoreView.swift */,
 				1C1200000000000000000B03 /* SteamOSSupport.bundle */,
 				1C1200000000000000000B04 /* DistroLogos.bundle */,
@@ -2656,6 +2659,7 @@
 				1C1100000000000000000F06 /* BluetoothSerialView.swift */,
 				1C1100000000000000000F05 /* LongTaskCenter.swift */,
 				1C1100000000000000000F04 /* HomeComponents.swift */,
+				1C110000000000000000D551 /* DesignSystem.swift */,
 				1C1100000000000000000F03 /* AppStoreView.swift */,
 				1C1100000000000000000B02 /* SteamOSInstaller.swift */,
 				1C1100000000000000000B01 /* SteamOSManifest.swift */,
