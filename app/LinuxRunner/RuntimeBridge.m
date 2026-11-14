@@ -21,6 +21,7 @@
 #include "asbestos/guest-arm64/jit.h"
 #endif
 #include <os/log.h>
+#include <os/proc.h>
 #include <errno.h>
 #include <stdio.h>
 #include <time.h>
@@ -744,6 +745,13 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
 }
 + (void)prepareExecutionBackendAtLaunch {
     [self migrateDesktopSizeToLandscape];
+    // Memory headroom as iOS grants it. The increased-memory-limit and
+    // extended-virtual-addressing entitlements raise these; desktop crashes
+    // from allocation failures happen when they are absent.
+    task_vm_info_data_t vm={0};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
+    if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&vm,&count)==KERN_SUCCESS)
+        [self logCategory:@"MEMORY" event:[NSString stringWithFormat:@"available=%llu MB footprint=%llu MB address-space=%.1f GB",
+            (unsigned long long)os_proc_available_memory()>>20,(unsigned long long)vm.phys_footprint>>20,(double)(vm.max_address-vm.min_address)/(1ull<<30)]];
     static dispatch_once_t observe;
     dispatch_once(&observe,^{[NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *n){[LRRuntimeBridge retryJITWhenAuthorized];}];});
     NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;

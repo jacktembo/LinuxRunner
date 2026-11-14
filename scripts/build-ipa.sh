@@ -78,7 +78,8 @@ if [[ $mode == unsigned ]]; then
     python3 - "$staging/entitlements.plist" "${BUNDLE_ID:-dev.linuxrunner.app}" "$diagnostic" <<'PYADHOC'
 import plistlib, sys
 with open(sys.argv[1], 'wb') as out:
-    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]]}, out)
+    memory = {'com.apple.developer.kernel.extended-virtual-addressing': True, 'com.apple.developer.kernel.increased-memory-limit': True}
+    plistlib.dump(memory if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]], **memory}, out)
 PYADHOC
     # Retain exactly the signed executable shipped in the IPA, so the archive
     # provenance check remains byte-for-byte strict after ad-hoc signing.
@@ -116,7 +117,8 @@ fi
 python3 - "$release/$artifact.entitlements.plist" "${BUNDLE_ID:-dev.linuxrunner.app}" "$diagnostic" <<'PYENT'
 import plistlib, sys
 with open(sys.argv[1], 'wb') as out:
-    plistlib.dump({} if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]]}, out)
+    memory = {'com.apple.developer.kernel.extended-virtual-addressing': True, 'com.apple.developer.kernel.increased-memory-limit': True}
+    plistlib.dump(memory if sys.argv[3] == 'YES' else {'com.apple.security.application-groups': ['group.' + sys.argv[2]], **memory}, out)
 PYENT
 (cd "$release" && shasum -a 256 "$artifact.ipa" > "$artifact.ipa.sha256")
 git rev-parse HEAD > "$release/source-revision.txt"

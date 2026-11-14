@@ -862,6 +862,10 @@ static void fiber_prechain_same_page(struct asbestos *asbestos, struct fiber_blo
 static void fiber_resize_hash(struct asbestos *asbestos, size_t new_size) {
     TRACE_(verbose, "%d resizing hash to %lu, using %lu bytes for gadgets\n", current_pid(), new_size, asbestos->mem_used);
     struct list *new_hash = calloc(new_size, sizeof(struct list));
+    // Growing is an optimisation: under memory pressure keep the current
+    // table (longer chains, same results) instead of dereferencing NULL.
+    if (new_hash == NULL)
+        return;
     for (size_t i = 0; i < asbestos->hash_size; i++) {
         if (list_null(&asbestos->hash[i]))
             continue;
