@@ -1,4 +1,5 @@
 #import "GUIViewController.h"
+#import "LRDesign.h"
 #import "RuntimeBridge.h"
 #import "RFBClient.h"
 #import "FramebufferPatch.h"
@@ -2080,8 +2081,8 @@ static NSString *DesktopDegradedNotice(NSString *state){
 static const NSInteger LRAccessoryKeyTag=7701;
 - (void)resetModifierButtons{for(UIButton *button in _modifierButtons){button.selected=NO;[self styleModifierButton:button];}}
 - (void)styleModifierButton:(UIButton *)button{
-    if(button.tag==LRAccessoryKeyTag){button.backgroundColor=button.selected?UIColor.systemBlueColor:UIColor.tertiarySystemFillColor;[button setTitleColor:button.selected?UIColor.whiteColor:UIColor.labelColor forState:UIControlStateNormal];}
-    else [button setTitleColor:button.selected?UIColor.systemRedColor:UIColor.systemBlueColor forState:UIControlStateNormal];
+    if(button.tag==LRAccessoryKeyTag){button.backgroundColor=button.selected?[LRAccent() colorWithAlphaComponent:.22]:UIColor.tertiarySystemFillColor;[button setTitleColor:button.selected?LRAccent():UIColor.labelColor forState:UIControlStateNormal];}
+    else [button setTitleColor:button.selected?LRDanger():LRAccent() forState:UIControlStateNormal];
 }
 static UIButton *LRSquareButton(NSString *symbol,NSString *label,UIColor *tint){
     UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];
@@ -2095,7 +2096,7 @@ static UIButton *LRSquareButton(NSString *symbol,NSString *label,UIColor *tint){
 // DeX, Settings and Power as icon tiles; everything else under "more".
 - (void)installDesktopToolbar{
     __weak typeof(self) weak=self;
-    _dexButton=LRSquareButton(@"display",@"DeX Mode",UIColor.systemIndigoColor);_dexButton.accessibilityIdentifier=@"Desktop DeX";
+    _dexButton=LRSquareButton(@"display",@"DeX Mode",LRAccent());_dexButton.accessibilityIdentifier=@"Desktop DeX";
     [_dexButton addAction:[UIAction actionWithHandler:^(UIAction *a){[weak performDesktopAction:@"touchpad"];[weak refreshDesktopToolbar];}] forControlEvents:UIControlEventTouchUpInside];
     UIButton *settings=LRSquareButton(@"gearshape.fill",@"Desktop Settings",UIColor.systemGrayColor);settings.accessibilityIdentifier=@"Desktop Settings";
     [settings addAction:[UIAction actionWithHandler:^(UIAction *a){typeof(self) self=weak;if(!self)return;[self.view endEditing:YES];[self.surface releaseInput];[self resetModifierButtons];
@@ -2106,7 +2107,7 @@ static UIButton *LRSquareButton(NSString *symbol,NSString *label,UIColor *tint){
     power.menu=[UIMenu menuWithTitle:@"Apps keep running when you return to Home." children:@[
         [UIAction actionWithTitle:@"Return to Home" image:[UIImage systemImageNamed:@"house"] identifier:nil handler:^(UIAction *a){[weak done];}],stop]];
     power.showsMenuAsPrimaryAction=YES;
-    _moreButton=LRSquareButton(@"ellipsis",@"More Desktop Actions",UIColor.systemBlueColor);_moreButton.accessibilityIdentifier=@"Desktop More";
+    _moreButton=LRSquareButton(@"ellipsis",@"More Desktop Actions",UIColor.labelColor);_moreButton.accessibilityIdentifier=@"Desktop More";
     [_moreButton addTarget:self action:@selector(desktopOptions:) forControlEvents:UIControlEventTouchUpInside];
     UIStackView *row=[[UIStackView alloc] initWithArrangedSubviews:@[_moreButton,_dexButton,settings,power]];row.spacing=8;
     self.navigationItem.rightBarButtonItem=[[UIBarButtonItem alloc] initWithCustomView:row];
@@ -2155,7 +2156,7 @@ static UIButton *LRSquareButton(NSString *symbol,NSString *label,UIColor *tint){
     [more addAction:[UIAction actionWithHandler:^(UIAction *a){[weak desktopOptions:a.sender];}] forControlEvents:UIControlEventTouchUpInside];
     UIView *divider=[UIView new];divider.tag=LRDockPortraitOnlyTag;divider.backgroundColor=[UIColor colorWithWhite:1 alpha:.22];divider.translatesAutoresizingMaskIntoConstraints=NO;
     [NSLayoutConstraint activateConstraints:@[[divider.widthAnchor constraintEqualToConstant:1],[divider.heightAnchor constraintEqualToConstant:24]]];[stack addArrangedSubview:divider];
-    UIButton *power=[self dockButton:@"power" title:@"Exit" tint:[UIColor colorWithRed:1 green:.42 blue:.40 alpha:1] stack:stack];power.accessibilityIdentifier=@"Dock Power";power.tag=LRDockPortraitOnlyTag;
+    UIButton *power=[self dockButton:@"power" title:@"Exit" tint:LRDanger() stack:stack];power.accessibilityIdentifier=@"Dock Power";power.tag=LRDockPortraitOnlyTag;
     power.menu=powerMenu;power.showsMenuAsPrimaryAction=YES;
     // Landscape: fold the pill away; a small handle brings it back.
     UIButton *fold=[self dockButton:@"chevron.up" title:@"Hide Controls" tint:[UIColor colorWithWhite:1 alpha:.6] stack:stack];fold.accessibilityIdentifier=@"Dock Fold";fold.tag=LRDockFoldTag;
@@ -2171,7 +2172,7 @@ static UIButton *LRSquareButton(NSString *symbol,NSString *label,UIColor *tint){
         [self.navigationController setNavigationBarHidden:shown||self.immersive animated:YES];self.status.hidden=shown||self.immersive;};
 }- (void)refreshDesktopToolbar{
     BOOL on=_surface.relativeTouchpad||_trackpadRequested;
-    _dexButton.backgroundColor=on?UIColor.systemIndigoColor:[UIColor.systemIndigoColor colorWithAlphaComponent:.16];_dexButton.tintColor=on?UIColor.whiteColor:UIColor.systemIndigoColor;
+    _dexButton.backgroundColor=on?LRAccent():[LRAccent() colorWithAlphaComponent:.16];_dexButton.tintColor=on?UIColor.whiteColor:LRAccent();
     _dexButton.accessibilityValue=on?@"On":@"Off";
     _dockDexButton.backgroundColor=on?[UIColor colorWithWhite:1 alpha:.22]:UIColor.clearColor;
 }

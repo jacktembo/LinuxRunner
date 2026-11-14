@@ -8,6 +8,23 @@
 #import "TerminalViewController.h"
 #ifdef LINUXRUNNER
 #import "LinuxRunner-Swift.h"
+#import "LinuxRunner/LRDesign.h"
+
+// A terminal key cap: visible key shape, pressed state, and the brand accent
+// while Ctrl or Alt is latched (TerminalView sets `selected` directly, so the
+// look follows both taps and automatic release).
+@interface LRKeyCapButton : UIButton
+@end
+@implementation LRKeyCapButton
+- (void)lr_update {
+    BOOL latched = self.selected;
+    self.backgroundColor = latched ? [LRTerminalAccent() colorWithAlphaComponent:0.18] : self.highlighted ? LRTerminalKeyPressed() : LRTerminalKey();
+    self.layer.borderColor = (latched ? LRTerminalAccent() : LRTerminalBorder()).CGColor;
+    self.tintColor = latched ? LRTerminalAccent() : LRTerminalText();
+}
+- (void)setSelected:(BOOL)selected { [super setSelected:selected]; [self lr_update]; }
+- (void)setHighlighted:(BOOL)highlighted { [super setHighlighted:highlighted]; [self lr_update]; }
+@end
 #endif
 #import "AppDelegate.h"
 #import "TerminalView.h"
@@ -587,26 +604,37 @@ session_failed:
 // LinuxRunner's terminal keys (replaces iSH's bar): the classic two rows,
 //   ESC  /  -  HOME  ^  END  PGUP  ~  clipboard
 //   TAB CTRL ALT  <   v   >  PGDN  |  hide
-// plain labels on black; Ctrl and Alt latch for the next key and turn blue.
+// Key caps on the true-black bar; Ctrl and Alt latch for the next key and
+// take the brand accent.
 - (UIView *)linuxKeyBar {
     static const void *key = &key;
     UIView *bar = objc_getAssociatedObject(self, key);
     if (bar) return bar;
-    bar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 92)];
-    bar.backgroundColor = UIColor.blackColor; bar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    UIStackView *grid = [UIStackView new]; grid.axis = UILayoutConstraintAxisVertical; grid.distribution = UIStackViewDistributionFillEqually; grid.translatesAutoresizingMaskIntoConstraints = NO;
+    bar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 96)];
+    bar.backgroundColor = LRTerminalBackground(); bar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    UIView *hairline = [UIView new]; hairline.backgroundColor = LRTerminalBorder(); hairline.translatesAutoresizingMaskIntoConstraints = NO;
+    [bar addSubview:hairline];
+    UIStackView *grid = [UIStackView new]; grid.axis = UILayoutConstraintAxisVertical; grid.distribution = UIStackViewDistributionFillEqually; grid.spacing = 5; grid.translatesAutoresizingMaskIntoConstraints = NO;
     [bar addSubview:grid];
-    [NSLayoutConstraint activateConstraints:@[[grid.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:2], [grid.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-2], [grid.topAnchor constraintEqualToAnchor:bar.topAnchor constant:2], [grid.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor constant:-2]]];
+    [NSLayoutConstraint activateConstraints:@[
+        [hairline.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor], [hairline.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor],
+        [hairline.topAnchor constraintEqualToAnchor:bar.topAnchor], [hairline.heightAnchor constraintEqualToConstant:1.0 / UIScreen.mainScreen.scale],
+        [grid.leadingAnchor constraintEqualToAnchor:bar.safeAreaLayoutGuide.leadingAnchor constant:5], [grid.trailingAnchor constraintEqualToAnchor:bar.safeAreaLayoutGuide.trailingAnchor constant:-5],
+        [grid.topAnchor constraintEqualToAnchor:bar.topAnchor constant:6], [grid.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor constant:-6]]];
     NSArray *rows = @[@[@"ESC", @"/", @"-", @"HOME", @"↑", @"END", @"PGUP", @"~", @"CLIP"], @[@"TAB", @"CTRL", @"ALT", @"←", @"↓", @"→", @"PGDN", @"|", @"HIDE"]];
+    NSDictionary *spoken = @{@"ESC": @"Escape", @"/": @"Slash", @"-": @"Minus", @"HOME": @"Home", @"↑": @"Up Arrow", @"END": @"End", @"PGUP": @"Page Up", @"~": @"Tilde",
+                             @"TAB": @"Tab", @"CTRL": @"Control", @"ALT": @"Alt", @"←": @"Left Arrow", @"↓": @"Down Arrow", @"→": @"Right Arrow", @"PGDN": @"Page Down", @"|": @"Vertical Bar"};
     for (NSArray *row in rows) {
-        UIStackView *line = [UIStackView new]; line.distribution = UIStackViewDistributionFillEqually; [grid addArrangedSubview:line];
+        UIStackView *line = [UIStackView new]; line.distribution = UIStackViewDistributionFillEqually; line.spacing = 5; [grid addArrangedSubview:line];
         for (NSString *label in row) {
-            UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
-            b.tintColor = UIColor.whiteColor; b.layer.cornerRadius = 8;
+            LRKeyCapButton *b = [LRKeyCapButton buttonWithType:UIButtonTypeCustom];
+            b.layer.cornerRadius = 8; b.layer.cornerCurve = kCACornerCurveContinuous; b.layer.borderWidth = 1;
+            [b addTarget:self action:@selector(linuxKeyFeedback:) forControlEvents:UIControlEventTouchDown];
             if ([label isEqualToString:@"CLIP"] || [label isEqualToString:@"HIDE"]) {
                 BOOL clip = [label isEqualToString:@"CLIP"];
-                [b setImage:[UIImage systemImageNamed:clip ? @"doc.on.clipboard" : @"keyboard.chevron.compact.down" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
+                [b setImage:[[UIImage systemImageNamed:clip ? @"doc.on.clipboard" : @"keyboard.chevron.compact.down" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 b.accessibilityLabel = clip ? @"Clipboard" : @"Hide Keyboard";
+                [b lr_update];
                 if (clip) {
                     __weak typeof(self) weak = self;
                     b.menu = [UIMenu menuWithTitle:@"" children:@[
@@ -617,11 +645,15 @@ session_failed:
                 [line addArrangedSubview:b]; continue;
             }
             [b setTitle:label forState:UIControlStateNormal];
-            b.titleLabel.font = [UIFont systemFontOfSize:label.length > 3 ? 13 : label.length > 2 ? 14 : 17 weight:UIFontWeightSemibold];
+            BOOL word = label.length > 1 && ![@[@"↑", @"↓", @"←", @"→"] containsObject:label];
+            b.titleLabel.font = word ? [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightSemibold] : [UIFont monospacedSystemFontOfSize:16 weight:UIFontWeightSemibold];
             b.titleLabel.adjustsFontSizeToFitWidth = YES; b.titleLabel.minimumScaleFactor = 0.7;
-            [b setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
-            [b setTitleColor:UIColor.systemBlueColor forState:UIControlStateSelected];
+            [b setTitleColor:LRTerminalText() forState:UIControlStateNormal];
+            [b setTitleColor:LRTerminalAccent() forState:UIControlStateSelected];
+            [b setTitleColor:LRTerminalAccent() forState:UIControlStateSelected | UIControlStateHighlighted];
+            [b lr_update];
             b.accessibilityIdentifier = [@"Term " stringByAppendingString:label];
+            if (spoken[label]) b.accessibilityLabel = spoken[label];
             [b addTarget:self action:@selector(linuxKey:) forControlEvents:UIControlEventTouchUpInside];
             if ([label isEqualToString:@"CTRL"]) self.termView.controlKey = b;
             if ([label isEqualToString:@"ALT"]) self.termView.altKey = b;
@@ -631,10 +663,15 @@ session_failed:
     objc_setAssociatedObject(self, key, bar, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return bar;
 }
+- (void)linuxKeyFeedback:(UIButton *)button {
+    static UIImpactFeedbackGenerator *haptics;
+    if (!haptics) haptics = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [haptics impactOccurred];
+}
 - (void)linuxKey:(UIButton *)button {
     NSString *label = [button titleForState:UIControlStateNormal];
     if ([label isEqualToString:@"CTRL"] || [label isEqualToString:@"ALT"]) {
-        button.selected = !button.selected;   // blue label while latched; cleared after one key
+        button.selected = !button.selected;   // accent while latched; cleared after one key
         return;
     }
     NSDictionary *sequences = @{@"ESC": @"\x1b", @"TAB": @"\t", @"HOME": @"\x1b[H", @"END": @"\x1b[F", @"PGUP": @"\x1b[5~", @"PGDN": @"\x1b[6~"};
