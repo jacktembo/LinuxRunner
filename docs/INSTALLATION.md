@@ -8,7 +8,7 @@ The Build 905 device IPA is ARM64, configured for iPhone and iPad with a 15.0 de
 
 ## Download, Sign and Open
 
-1. Download the IPA from [GitHub Releases](https://github.com/mxhm11cr/LinuxRunner/releases).
+1. Download the IPA from [GitHub Releases](https://github.com/jacktembo/LinuxRunner/releases).
 2. Compare the original file's SHA-256 with the checksum supplied for that release.
 3. Install using your preferred compatible IPA sideloading tool, such as [Sideloadly](https://sideloadly.io/) or [AltStore Classic](https://altstore.io/).
 4. Open the app, then **Distributions** and choose a distribution to install. Follow the [Linux installation walkthrough](GETTING_STARTED.md).

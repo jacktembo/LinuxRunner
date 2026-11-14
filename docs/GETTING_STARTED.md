@@ -4,7 +4,7 @@ The IPA installs LinuxRunner. A distribution provides the Linux files, shell and
 
 ## 1. Install LinuxRunner
 
-Download the IPA from [GitHub Releases](https://github.com/mxhm11cr/LinuxRunner/releases/latest) and sign/install it with a compatible sideloading tool of your choice. See [Installation](INSTALLATION.md) for checksum and signing details. Installing the app does not require compiling its source.
+Download the IPA from [GitHub Releases](https://github.com/jacktembo/LinuxRunner/releases/latest) and sign/install it with a compatible sideloading tool of your choice. See [Installation](INSTALLATION.md) for checksum and signing details. Installing the app does not require compiling its source.
 
 For an update, back up important files and preserve your bundle identifier and App Group configuration. Do not uninstall the existing app as a troubleshooting step.
 

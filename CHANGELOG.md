@@ -126,5 +126,3 @@ Full release notes: [docs/releases/v1.1.1.md](docs/releases/v1.1.1.md).
 
 - An account-tools preparation failure could appear to finish without effect when its installer had not started.
 
-[1.0.1]: https://github.com/mxhm11cr/LinuxRunner/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/mxhm11cr/LinuxRunner/releases/tag/v1.0.0
