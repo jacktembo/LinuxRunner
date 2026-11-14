@@ -1541,6 +1541,7 @@ struct ExecutionEngineView: View {
                 Text(report["detail"] as? String ?? "").font(.footnote).foregroundColor(.secondary)
                 if compiled {
                     LabeledRow("Running", active ? "ARM64 JIT (with interpreter for untranslated code)" : "ARM64 Interpreter")
+                    LabeledRow("JIT allowed by iOS", (report["allowed"] as? Bool ?? false) ? "Yes" : "No")
                     LabeledRow("Debugger attached", (report["debugger"] as? Bool ?? false) ? "Yes" : "No")
                     LabeledRow("Guest blocks translated", "\((report["blocks"] as? NSNumber)?.uint64Value ?? 0)")
                     LabeledRow("Native code", "\((report["code_kb"] as? NSNumber)?.uint64Value ?? 0) KB")

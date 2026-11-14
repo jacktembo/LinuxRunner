@@ -1030,7 +1030,12 @@ int lr_steamos_install_stream(const char *image_path, const char *const *package
     struct export x = {.fs = &fs, .counting = true, .progress = progress, .context = context};
     if (!export_entry(&x, top, top->root_dir, 0)) goto fail;
     archive = archive_write_new();
+    // Btrfs names are raw bytes (normally UTF-8). Without hdrcharset=BINARY,
+    // libarchive converts each name from the current locale, which is "C" in
+    // the app, so any non-ASCII name fails ("Can't translate pathname ... to
+    // UTF-8", GitHub issue #28). DebianBootstrap.c uses the same setting.
     if (!archive || archive_write_set_format_pax_restricted(archive) != ARCHIVE_OK ||
+        archive_write_set_format_option(archive, "pax", "hdrcharset", "BINARY") != ARCHIVE_OK ||
         archive_write_set_bytes_in_last_block(archive, 1) != ARCHIVE_OK) FAIL("Archive setup failed");
     if (archive_write_open(archive, &out_fd, archive_fd_open, archive_fd_write, archive_fd_close) != ARCHIVE_OK)
         FAIL("Archive setup failed: %s", archive_error_string(archive) ?: "unknown");
