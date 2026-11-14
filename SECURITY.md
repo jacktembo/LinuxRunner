@@ -10,9 +10,9 @@ Distribution installers use signature-checked package data and TLS. Keep those c
 
 ## Report a Vulnerability Privately
 
-Use [GitHub's private vulnerability report form](https://github.com/mxhm11cr/LinuxRunner/security/advisories/new). Private reporting was enabled for the public repository; if the form is unavailable, do not post exploit details, credentials or private data in an ordinary issue.
+Use [GitHub's private vulnerability report form](https://github.com/jacktembo/LinuxRunner/security/advisories/new). Private reporting was enabled for the public repository; if the form is unavailable, do not post exploit details, credentials or private data in an ordinary issue.
 
-Include app version/build, source/artifact identity when known, device/OS, distribution and a minimal reproduction. No response deadline is promised. Ordinary crashes and compatibility problems can be reported through [Issues](https://github.com/mxhm11cr/LinuxRunner/issues).
+Include app version/build, source/artifact identity when known, device/OS, distribution and a minimal reproduction. No response deadline is promised. Ordinary crashes and compatibility problems can be reported through [Issues](https://github.com/jacktembo/LinuxRunner/issues).
 
 ## Diagnostic Privacy
 

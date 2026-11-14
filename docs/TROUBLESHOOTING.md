@@ -100,7 +100,7 @@ The app may use an App Group container or private application storage, depending
 
 Review exported files before sharing. Automatic redaction is useful but cannot guarantee that logs, filenames, screenshots or program output contain no private information. Remove messages, account identifiers, addresses, tokens and sensitive paths. Keep the original privately if further diagnosis is needed.
 
-Open a [GitHub issue](https://github.com/mxhm11cr/LinuxRunner/issues/new/choose) with device/OS, app version/build/source identity, distribution, package version, desktop/graphics mode, steps, expected/actual behavior and the first relevant error. State whether an app merely launched or was actually used. Use the [private security channel](../SECURITY.md) for vulnerabilities.
+Open a [GitHub issue](https://github.com/jacktembo/LinuxRunner/issues/new/choose) with device/OS, app version/build/source identity, distribution, package version, desktop/graphics mode, steps, expected/actual behavior and the first relevant error. State whether an app merely launched or was actually used. Use the [private security channel](../SECURITY.md) for vulnerabilities.
 
 ## Hyprland or Wayfire Startup Fails
 

@@ -4,7 +4,7 @@ LinuxRunner derives from iSH through ios-linuxkit. Preserve the existing [licens
 
 ## Report a Bug or Compatibility Result
 
-Use [GitHub Issues](https://github.com/mxhm11cr/LinuxRunner/issues/new/choose). Include device model, iOS/iPadOS version, LinuxRunner version/build (Settings → About LinuxRunner), distribution, package version and desktop/graphics mode. Describe reproducible steps, expected behavior and the first relevant error.
+Use [GitHub Issues](https://github.com/jacktembo/LinuxRunner/issues/new/choose). Include device model, iOS/iPadOS version, LinuxRunner version/build (Settings → About LinuxRunner), distribution, package version and desktop/graphics mode. Describe reproducible steps, expected behavior and the first relevant error.
 
 Distinguish a successful launch, basic interaction and a longer feature test. Include diagnostic reports where useful; [Troubleshooting](docs/TROUBLESHOOTING.md#collect-logs-and-report-a-problem) explains the export controls. Review logs and screenshots for messages, account identifiers, addresses, tokens and private paths before sharing. Report vulnerabilities through the [private security channel](SECURITY.md), not public issues.
 
