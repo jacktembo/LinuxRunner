@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same Alpine archive the app bundles (app/iSH.xcconfig).
+  ALPINE_URL: https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-minirootfs-3.24.2-aarch64.tar.gz
+  ALPINE_SHA256: 9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773
+
+jobs:
+  ios-app:
+    name: iOS app (unsigned IPA)
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialise pinned submodules
+        run: git submodule update --init --recursive --checkout -- deps/libapps deps/libarchive deps/glslang deps/spirv-cross
+
+      - name: Select newest Xcode
+        run: |
+          xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install build tools
+        run: brew install meson ninja lld
+
+      - name: Ensure the iOS platform is installed
+        run: |
+          if xcodebuild -showdestinations -project iSH.xcodeproj -scheme LinuxRunner 2>&1 | grep -q 'is not installed'; then
+            xcodebuild -downloadPlatform iOS
+          fi
+
+      - name: Check prerequisites
+        run: scripts/bootstrap-macos.sh
+
+      - name: Build unsigned IPA
+        run: scripts/build-ipa.sh --unsigned
+
+      - name: Verify IPA
+        run: python3 scripts/verify-ipa.py build/releases
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinuxRunner-${{ github.sha }}-unsigned
+          path: |
+            build/releases/LinuxRunner.ipa
+            build/releases/LinuxRunner.ipa.sha256
+            build/releases/LinuxRunner.validation.json
+          retention-days: 14
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-log-${{ github.sha }}
+          path: build/releases/archive.log
+          retention-days: 7
+
+  runtime-arm64:
+    name: Runtime tests (Linux ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      CC: clang
+      ISH_BIN: ${{ github.workspace }}/build-arm64-linux/ish
+      BUILD_DIR: ${{ github.workspace }}/build-arm64-linux
+      ROOTFS: ${{ github.workspace }}/alpine-arm64-fakefs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld ninja-build libsqlite3-dev libarchive-dev file
+          pipx install meson
+
+      - name: Build emulator
+        run: |
+          meson setup build-arm64-linux -Dguest_arch=arm64 --buildtype=release
+          ninja -C build-arm64-linux
+
+      - name: Build Alpine test root filesystem
+        run: |
+          curl --fail --location --retry 2 -o alpine.tar.gz "$ALPINE_URL"
+          echo "$ALPINE_SHA256  alpine.tar.gz" | sha256sum -c -
+          build-arm64-linux/tools/fakefsify alpine.tar.gz "$ROOTFS"
+
+      - name: Smoke test
+        run: timeout 60 "$ISH_BIN" -f "$ROOTFS" /bin/sh -c 'uname -m; cat /etc/alpine-release; echo SMOKE_OK' | tee smoke.log && grep -qx SMOKE_OK smoke.log
+
+      - name: Rootfs downloader
+        if: success() || failure()
+        run: sh tests/arm64/rootfs/download-root.sh
+
+      - name: poll on regular files
+        if: success() || failure()
+        run: bash tests/arm64/fs/run-poll-regular.sh
+
+      - name: Precise fault PC on 64-bit loads
+        if: success() || failure()
+        run: bash tests/arm64/loadstore/run-load64-fault-pc.sh
+
+      - name: procfs and exit race
+        if: success() || failure()
+        run: bash tests/arm64/proc/run-proc-exit-race.sh
+
+      - name: Native offload setup
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run-offload-setup.sh
+
+      - name: Native offload I/O
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run-offload-io.sh
+
+      - name: Native offload context
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run-offload-context.sh
+
+      - name: Native offload local copy
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run-offload-local-copy.sh
+
+      - name: Native filesystem
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run-native-fs.sh
+
+      - name: Upstream correctness and lifetime gates
+        if: success() || failure()
+        run: bash tests/arm64/upstream/run.sh
+
+  docs:
+    name: Docs checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - name: Markdown links
+        run: bun scripts/check-markdown-links.ts
+      - name: Docs style
+        run: bun scripts/check-docs-style.ts
+      - name: Docs style rules self-test
+        run: bun test scripts/check-docs-style.test.ts
