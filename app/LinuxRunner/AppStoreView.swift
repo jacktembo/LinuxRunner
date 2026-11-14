@@ -223,7 +223,7 @@ struct AppStoreView: View {
                     else if section == 0 { discover }
                     else if section == 1 { installedSection }
                     else { updatesSection }
-                }.listStyle(.insetGrouped)
+                }.listStyle(.insetGrouped).dsListStyle()
             }
         }
         .navigationTitle("App Store")
@@ -254,12 +254,11 @@ struct AppStoreView: View {
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 44, height: 44).overlay(Image(systemName: "bag.fill").foregroundColor(.white).font(.title3))
+            HStack(spacing: DS.Space.sm) {
+                DistroBadge(distributionID: environment?.distributionID, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(environment?.name ?? "Linux").font(.headline)
-                    Text("\(model.packageManager) · \(environment?.distribution ?? "") repositories").font(.caption).foregroundColor(.secondary)
+                    Text(environment?.name ?? "Linux").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                    Text("\(model.packageManager) · \(environment?.distribution ?? "") repositories").font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
                 }
             }
             Picker("Section", selection: $section) { Text("Discover").tag(0); Text("Installed").tag(1); Text("Updates").tag(2) }
@@ -285,8 +284,8 @@ struct AppStoreView: View {
             Section {
                 if model.busy { HStack { ProgressView(); Text(model.stage).foregroundColor(.secondary) } }
                 else {
-                    Text("No catalog apps found in this distribution's package lists. If the repositories were never refreshed, refresh them first.").font(.callout).foregroundColor(.secondary)
-                    Button { model.refreshRepositories() } label: { Label("Refresh Repositories", systemImage: "arrow.clockwise") }
+                    DSEmptyState(symbol: "shippingbox", title: "No catalog apps yet", message: "This distribution's package lists have no catalog apps. If the repositories were never refreshed, refresh them first.", actionTitle: "Refresh Repositories") { model.refreshRepositories() }
+                        .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
                 }
             }
         }
@@ -296,11 +295,13 @@ struct AppStoreView: View {
                     HStack(spacing: 14) {
                         ForEach(featured) { item in
                             Button { selected = item } label: {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    StoreIcon(image: icon(item).image, symbol: icon(item).symbol, tint: icon(item).tint, size: 56)
-                                    Text(item.name).font(.subheadline.weight(.semibold)).foregroundColor(.primary).lineLimit(1)
-                                    Text(item.installed ? "Installed" : item.version).font(.caption2).foregroundColor(.secondary).lineLimit(1)
-                                }.frame(width: 96, alignment: .leading)
+                                VStack(alignment: .leading, spacing: DS.Space.xs) {
+                                    StoreIcon(image: icon(item).image, symbol: icon(item).symbol, tint: icon(item).tint, size: 52)
+                                    Text(item.name).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary).lineLimit(1)
+                                    Text(item.installed ? "Installed" : item.version).font(DS.Font.monoSmall).foregroundColor(item.installed ? DS.Palette.success : DS.Palette.textSecondary).lineLimit(1)
+                                }
+                                .frame(width: 104, alignment: .leading)
+                                .dsCard(padding: DS.Space.sm)
                             }.buttonStyle(.plain)
                         }
                     }.padding(.vertical, 6)
@@ -332,11 +333,11 @@ struct AppStoreView: View {
         Section("Apps") {
             if manager.graphical.isEmpty { Text(manager.discovering ? "Looking for apps…" : "No graphical apps with desktop entries yet.").foregroundColor(.secondary) }
             ForEach(manager.graphical.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }) { app in
-                HStack(spacing: 12) {
-                    StoreIcon(image: manager.applicationIcons[app.launchKey], symbol: "app.fill", tint: .blue)
-                    VStack(alignment: .leading) { Text(app.name).font(.body.weight(.medium)); if let comment = app.comment { Text(comment).font(.caption).foregroundColor(.secondary).lineLimit(1) } }
+                HStack(spacing: DS.Space.sm) {
+                    StoreIcon(image: manager.applicationIcons[app.launchKey], symbol: "app", tint: .blue)
+                    VStack(alignment: .leading, spacing: 2) { Text(app.name).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary); if let comment = app.comment { Text(comment).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(1) } }
                     Spacer()
-                    Button("Open") { run(app) }.buttonStyle(.bordered).buttonBorderShape(.capsule)
+                    Button("Open") { run(app) }.buttonStyle(DSButtonStyle(.secondary, size: .small))
                 }
             }
         }
@@ -344,7 +345,7 @@ struct AppStoreView: View {
         Section("All Packages (\(filtered.count))") {
             ForEach(filtered.prefix(2000)) { record in
                 Button { selected = catalogEntry(StoreItem(record: record)) } label: {
-                    VStack(alignment: .leading, spacing: 2) { Text(record.name).font(.callout); Text(record.version).font(.caption2).foregroundColor(.secondary) }
+                    VStack(alignment: .leading, spacing: 2) { Text(record.name).font(DS.Font.mono).foregroundColor(DS.Palette.textPrimary); Text(record.version).font(DS.Font.monoSmall).foregroundColor(DS.Palette.textSecondary) }
                 }.buttonStyle(.plain)
             }
         }
@@ -386,16 +387,19 @@ struct StoreIconSpec { let image: UIImage?; let symbol: String; let tint: Color 
 struct StoreIcon: View {
     let image: UIImage?
     let symbol: String
+    /// Kept for callers; icons use the neutral tile so the catalog reads as one set.
     let tint: Color
     var size: CGFloat = 44
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
-            .fill(image == nil ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(0.9), tint], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Color(.secondarySystemBackground)))
+        RoundedRectangle.ds(size * 0.26)
+            .fill(DS.Palette.surfaceRaised)
             .frame(width: size, height: size)
             .overlay {
                 if let image { Image(uiImage: image).resizable().scaledToFit().padding(size * 0.14) }
-                else { Image(systemName: symbol).font(.system(size: size * 0.45, weight: .semibold)).foregroundColor(.white) }
+                else { Image(systemName: outlineSymbol(symbol)).font(.system(size: size * 0.42, weight: .medium)).foregroundColor(DS.Palette.textPrimary) }
             }
+            .overlay(RoundedRectangle.ds(size * 0.26).stroke(DS.Palette.border, lineWidth: 1))
+            .accessibilityHidden(true)
     }
 }
 
@@ -403,17 +407,17 @@ private struct StoreRow: View {
     let item: StoreItem
     let icon: StoreIconSpec
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DS.Space.sm) {
             StoreIcon(image: icon.image, symbol: icon.symbol, tint: icon.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(.body.weight(.medium)).foregroundColor(.primary)
-                Text(item.summary.isEmpty ? item.package : item.summary).font(.caption).foregroundColor(.secondary).lineLimit(2)
+                Text(item.name).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary)
+                Text(item.summary.isEmpty ? item.package : item.summary).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(2)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: DS.Space.xs)
             Text(item.installed ? "Installed" : "Get").font(.caption.weight(.bold))
-                .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(Capsule().fill(item.installed ? Color(.tertiarySystemFill) : Color.accentColor.opacity(0.15)))
-                .foregroundColor(item.installed ? .secondary : .accentColor)
+                .padding(.horizontal, DS.Space.sm).frame(minHeight: 28)
+                .background(Capsule().fill(item.installed ? DS.Palette.surfaceRaised : DS.Palette.accent.opacity(0.14)))
+                .foregroundColor(item.installed ? DS.Palette.textSecondary : DS.Palette.accent)
         }.padding(.vertical, 2).contentShape(Rectangle())
     }
 }
@@ -421,11 +425,9 @@ private struct StoreRow: View {
 private struct StoreEmpty: View {
     let icon, title, detail: String
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 40)).foregroundColor(.secondary)
-            Text(title).font(.title3.weight(.semibold))
-            Text(detail).font(.callout).foregroundColor(.secondary).multilineTextAlignment(.center)
-        }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
+        DSEmptyState(symbol: icon, title: title, message: detail)
+            .padding(DS.Space.screen).frame(maxWidth: 520).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .dsScreenBackground()
     }
 }
 
@@ -435,15 +437,20 @@ private struct StoreStatusBar: View {
         Group {
             switch model.state {
             case .running:
-                HStack(spacing: 10) { ProgressView(); Text(model.stage).font(.footnote).lineLimit(1); Spacer() }
+                HStack(spacing: DS.Space.sm) { ProgressView(); Text(model.stage).font(DS.Font.caption).foregroundColor(DS.Palette.textPrimary).lineLimit(1); Spacer() }
+                    .dsCard(padding: DS.Space.sm)
             case .failed(let message):
-                HStack(alignment: .top, spacing: 10) { Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange); Text(message).font(.footnote).lineLimit(3); Spacer()
-                    Button { model.state = .idle } label: { Image(systemName: "xmark") }.buttonStyle(.plain) }
+                HStack(alignment: .top, spacing: DS.Space.sm) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(DS.Palette.danger)
+                    Text(message).font(DS.Font.caption).foregroundColor(DS.Palette.textPrimary).lineLimit(3)
+                    Spacer()
+                    Button { model.state = .idle } label: { Image(systemName: "xmark").foregroundColor(DS.Palette.textSecondary) }.buttonStyle(.plain).accessibilityLabel("Dismiss")
+                }
+                .dsCard(padding: DS.Space.sm)
             default: EmptyView()
             }
         }
-        .padding(visible ? 12 : 0)
-        .background(visible ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.clear))
+        .padding(.horizontal, visible ? DS.Space.sm : 0).padding(.bottom, visible ? DS.Space.xs : 0)
     }
     private var visible: Bool {
         switch model.state { case .running, .failed: return true; default: return false }
@@ -469,14 +476,14 @@ struct StoreDetailView: View {
         NavigationView {
             List {
                 Section {
-                    HStack(spacing: 16) {
-                        StoreIcon(image: launch.flatMap { manager.applicationIcons[$0.launchKey] }, symbol: item.graphical ? "macwindow" : "terminal.fill", tint: .indigo, size: 72)
+                    HStack(spacing: DS.Space.md) {
+                        StoreIcon(image: launch.flatMap { manager.applicationIcons[$0.launchKey] }, symbol: item.graphical ? "macwindow" : "terminal", tint: .indigo, size: 72)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.name).font(.title2.weight(.bold))
-                            Text(item.package).font(.subheadline).foregroundColor(.secondary)
-                            Text(item.graphical ? "Graphical app" : "Command-line package").font(.caption).foregroundColor(.secondary)
+                            Text(item.name).font(.title2.weight(.bold)).foregroundColor(DS.Palette.textPrimary)
+                            Text(item.package).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary)
+                            DSBadge(text: item.graphical ? "Graphical app" : "Command line", tone: .neutral)
                         }
-                    }.padding(.vertical, 6)
+                    }.padding(.vertical, DS.Space.xs)
                     actions
                 }
                 if let reviewing { planSection(reviewing) }
@@ -494,22 +501,24 @@ struct StoreDetailView: View {
                     else { Text(model.details).font(.system(.caption2, design: .monospaced)).textSelection(.enabled) }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.insetGrouped).dsListStyle()
             .navigationTitle(item.name).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onAppear { model.loadDetails(item.package) }
         }
+        .tint(DS.Palette.accent)
     }
     @ViewBuilder private var actions: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DS.Space.xs) {
             if installedNow {
-                if let launch { Button { dismiss(); run(launch) } label: { Text("Open").frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent) }
-                Button { review("upgrade") } label: { Text("Update").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
-                Button(role: .destructive) { review("remove") } label: { Text("Remove").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
+                if let launch { Button { dismiss(); run(launch) } label: { Text("Open") }.buttonStyle(DSButtonStyle(.primary, fullWidth: true)) }
+                Button { review("upgrade") } label: { Text("Update") }.buttonStyle(DSButtonStyle(.secondary, fullWidth: true))
+                Button(role: .destructive) { review("remove") } label: { Text("Remove") }.buttonStyle(DSButtonStyle(.destructive, fullWidth: true))
             } else {
-                Button { review("install") } label: { Text("Install").frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent)
+                Button { review("install") } label: { Text("Install") }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
             }
-        }.disabled(model.busy).controlSize(.large)
+        }
+        .disabled(model.busy)
     }
     private func review(_ kind: String) {
         reviewing = kind; applying = nil; planFailed = false
@@ -518,26 +527,27 @@ struct StoreDetailView: View {
     @ViewBuilder private func planSection(_ kind: String) -> some View {
         Section {
             if case .running = model.state, applying == nil { HStack { ProgressView(); Text(model.stage).foregroundColor(.secondary) } }
-            else if planFailed { Text("The package manager could not plan this change.").foregroundColor(.orange); Text(model.planText.isEmpty ? model.log : model.planText).font(.system(.caption2, design: .monospaced)).textSelection(.enabled) }
+            else if planFailed { DSNotice(text: "The package manager could not plan this change.", symbol: "exclamationmark.triangle.fill", tone: .warning); Text(model.planText.isEmpty ? model.log : model.planText).font(.system(.caption2, design: .monospaced)).foregroundColor(DS.Palette.textSecondary).textSelection(.enabled) }
             else if applying == nil {
                 let removals = model.plan.filter { $0.action == "remove" }
                 let others = model.plan.filter { $0.action != "remove" }
-                if model.plan.isEmpty { Text("Nothing to change: \(item.package) is already in the requested state.").foregroundColor(.secondary) }
-                if !others.isEmpty { Text("\(others.count) package\(others.count == 1 ? "" : "s") will be installed or updated").font(.subheadline.weight(.semibold)) }
-                ForEach(others) { change in HStack { Image(systemName: change.action == "upgrade" ? "arrow.up.circle" : "plus.circle").foregroundColor(.green); Text(change.package); Spacer(); Text(change.version).font(.caption).foregroundColor(.secondary) } }
+                if model.plan.isEmpty { Text("Nothing to change: \(item.package) is already in the requested state.").font(DS.Font.detail).foregroundColor(DS.Palette.textSecondary) }
+                if !others.isEmpty { Text("\(others.count) package\(others.count == 1 ? "" : "s") will be installed or updated").font(DS.Font.label).foregroundColor(DS.Palette.textPrimary) }
+                ForEach(others) { change in HStack { Image(systemName: change.action == "upgrade" ? "arrow.up.circle" : "plus.circle").foregroundColor(DS.Palette.success); Text(change.package).font(DS.Font.mono); Spacer(); Text(change.version).font(DS.Font.monoSmall).foregroundColor(DS.Palette.textSecondary) } }
                 if !removals.isEmpty {
-                    Text("\(removals.count) package\(removals.count == 1 ? "" : "s") will be removed").font(.subheadline.weight(.semibold)).foregroundColor(.red)
-                    ForEach(removals) { change in HStack { Image(systemName: "minus.circle").foregroundColor(.red); Text(change.package); Spacer(); Text(change.version).font(.caption).foregroundColor(.secondary) } }
-                    if kind == "remove" && removals.count > 1 { Text("Other installed packages depend on \(item.package) and are removed with it.").font(.footnote).foregroundColor(.orange) }
+                    Text("\(removals.count) package\(removals.count == 1 ? "" : "s") will be removed").font(DS.Font.label).foregroundColor(DS.Palette.danger)
+                    ForEach(removals) { change in HStack { Image(systemName: "minus.circle").foregroundColor(DS.Palette.danger); Text(change.package).font(DS.Font.mono); Spacer(); Text(change.version).font(DS.Font.monoSmall).foregroundColor(DS.Palette.textSecondary) } }
+                    if kind == "remove" && removals.count > 1 { DSNotice(text: "Other installed packages depend on \(item.package) and are removed with it.", symbol: "exclamationmark.triangle.fill", tone: .warning) }
                 }
                 if let reason = AppStoreModel.protectedRemoval(plan: model.plan, text: model.planText) {
-                    Label(reason, systemImage: "lock.shield").font(.footnote).foregroundColor(.orange)
+                    DSNotice(text: reason, symbol: "lock.shield", tone: .warning)
                 } else if !model.plan.isEmpty {
                     Button(role: kind == "remove" ? .destructive : nil) { applying = kind; model.apply(kind, item.package, manager: manager) } label: {
-                        Text(kind == "remove" ? "Remove \(removals.count) Package\(removals.count == 1 ? "" : "s")" : kind == "upgrade" ? "Update" : "Install \(others.count) Package\(others.count == 1 ? "" : "s")").font(.body.weight(.semibold)).frame(maxWidth: .infinity)
+                        Text(kind == "remove" ? "Remove \(removals.count) Package\(removals.count == 1 ? "" : "s")" : kind == "upgrade" ? "Update" : "Install \(others.count) Package\(others.count == 1 ? "" : "s")")
                     }
+                    .buttonStyle(DSButtonStyle(kind == "remove" ? .destructive : .primary, fullWidth: true))
                 }
-                Button("Cancel") { reviewing = nil }.frame(maxWidth: .infinity)
+                Button("Cancel") { reviewing = nil }.buttonStyle(DSButtonStyle(.tertiary, fullWidth: true))
             }
         } header: { Text("Review Changes") } footer: {
             if applying == nil && !planFailed { Text("This is \(model.packageManager)'s own simulated transaction. Nothing has changed yet.") }
@@ -546,9 +556,9 @@ struct StoreDetailView: View {
     @ViewBuilder private var progressSection: some View {
         Section("Progress") {
             switch model.state {
-            case .running: HStack { ProgressView(); Text(model.stage) }
-            case .succeeded: Label(applying == "remove" ? "Removed" : applying == "upgrade" ? "Updated" : "Installed", systemImage: "checkmark.circle.fill").foregroundColor(.green)
-            case .failed(let message): Label(message, systemImage: "xmark.octagon.fill").foregroundColor(.red)
+            case .running: HStack(spacing: DS.Space.sm) { ProgressView(); Text(model.stage).font(DS.Font.detail).foregroundColor(DS.Palette.textPrimary) }
+            case .succeeded: Label(applying == "remove" ? "Removed" : applying == "upgrade" ? "Updated" : "Installed", systemImage: "checkmark.circle.fill").font(DS.Font.label).foregroundColor(DS.Palette.success)
+            case .failed(let message): DSNotice(text: message, symbol: "xmark.octagon.fill", tone: .danger)
             case .idle: EmptyView()
             }
             DisclosureGroup("Package manager output", isExpanded: $showLog) {
@@ -557,6 +567,6 @@ struct StoreDetailView: View {
         }
     }
     private func row(_ title: String, _ value: String) -> some View {
-        HStack { Text(title).foregroundColor(.secondary); Spacer(); Text(value).multilineTextAlignment(.trailing) }
+        DSKeyValueRow(key: title, value: value)
     }
 }

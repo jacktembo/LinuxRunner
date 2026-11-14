@@ -33,15 +33,35 @@ struct SetupWizardView: View {
     @State private var chosenDesktop = "linuxrunner"
     private var step: SetupStep { SetupStep(rawValue: stepRaw) ?? .welcome }
 
+    private var anyInstallerRunning: Bool { debian.running || arch.running || fedora.running || kali.running || steamos.running }
+
     var body: some View {
         NavigationView {
-            Form { content }
-                .navigationTitle(title)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button(step == .done ? "Close" : "Later") { dismiss() }.disabled(working != nil || debian.running || arch.running || fedora.running || kali.running || steamos.running || manager.busy) } }
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Space.xl) {
+                    if let index = stepIndex { DSStepIndicator(current: index, total: 5) }
+                    content
+                    if let working {
+                        HStack(spacing: DS.Space.sm) {
+                            ProgressView()
+                            Text(working).font(DS.Font.detail).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                        .dsCard()
+                    }
+                    if let problem { DSNotice(text: problem, symbol: "exclamationmark.triangle.fill", tone: .danger) }
+                }
+                .padding(.horizontal, DS.Space.screen).padding(.top, DS.Space.md).padding(.bottom, 140)
+                .frame(maxWidth: 640).frame(maxWidth: .infinity)
+            }
+            .dsScreenBackground()
+            .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(step == .done ? "Close" : "Later") { dismiss() }.disabled(working != nil || anyInstallerRunning || manager.busy) } }
         }
         .navigationViewStyle(.stack)
+        .tint(DS.Palette.accent)
         .overlay(alignment: .bottom) { InstallProgressCard() }
-        .interactiveDismissDisabled(working != nil || debian.running || arch.running || fedora.running || kali.running || steamos.running || manager.busy)
+        .interactiveDismissDisabled(working != nil || anyInstallerRunning || manager.busy)
         .onAppear(perform: resume)
         .fileImporter(isPresented: $steamOSImporter, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
             switch result {
@@ -58,40 +78,148 @@ struct SetupWizardView: View {
         }
     }
 
+    private var stepIndex: Int? {
+        switch step {
+        case .welcome, .done: return nil
+        case .distribution: return 1; case .install: return 2; case .relaunch: return 3; case .account: return 4; case .desktop: return 5
+        }
+    }
+
+    private var selectedDistributionName: String { CatalogDistribution.all.first { $0.id == distribution }?.name ?? "Linux" }
+
+    /// What the chosen distribution offers and what it cannot do on iOS.
+    private var distributionNote: (String, DS.Tone)? {
+        switch distribution {
+        case "debian": return ("Recommended: stable, with the widest app and desktop support.", .info)
+        case "arch": return ("A rolling release with pacman and experimental X11 and Wayland desktops.", .info)
+        case "fedora": return ("Experimental DNF userspace with a lightweight X11 desktop.", .info)
+        case "kali": return ("The official Kali userspace with its Xfce desktop and optional standard tools. Kernel-level features such as monitor-mode Wi-Fi, raw packet capture and kernel modules are not available on iOS.", .warning)
+        case "alpine": return ("Small, and mainly for the terminal.", .info)
+        case "steamos": return ("Experimental: installed from Valve's SteamFrame recovery image. This is not official SteamOS support, and Steam games are not supported.", .warning)
+        default: return nil
+        }
+    }
+
     @ViewBuilder private var content: some View {
         switch step {
         case .welcome:
-            Section { Text("LinuxRunner runs real ARM64 Linux programs on this iPhone with its own interpreter — no virtual machine.")
-                Text("Setup installs Linux, creates your account and prepares the graphical desktop. Everything can be changed later in Settings.").foregroundStyle(.secondary) }
-            if !manager.environments.isEmpty { Section { Text("Configure an existing environment or install another distribution. Your files and accounts are preserved.").font(.footnote) } }
-            Section { Button("Continue") { stepRaw = SetupStep.distribution.rawValue } }
-        case .distribution:
-            Section(footer: Text("Debian is recommended. Arch Linux ARM is a rolling release with pacman and experimental X11/Wayland desktops. Fedora offers experimental DNF userspace with a lightweight X11 desktop. Kali Linux is the official Kali userspace with its Xfce desktop and optional standard tools; kernel-level features such as monitor-mode Wi-Fi, raw packet capture and kernel modules are not available on iOS. Alpine is small and mainly for the terminal. SteamOS ARM64 is experimental: it is installed from Valve's SteamFrame recovery image (not official SteamOS support; Steam games are not supported). Desktop compatibility varies.")) {
-                Picker("Distribution", selection: $distribution) { Text("Debian GNU/Linux 13 (ARM64) — recommended").tag("debian"); Text("Arch Linux ARM (ARM64)").tag("arch"); Text("Fedora Linux 44 (ARM64)").tag("fedora"); Text("Kali Linux \(KaliImage.version) (ARM64)").tag("kali"); Text("Alpine Linux 3.24 (ARM64)").tag("alpine"); Text("SteamOS ARM64 — experimental").tag("steamos") }.pickerStyle(.inline).labelsHidden()
+            VStack(alignment: .leading, spacing: DS.Space.lg) {
+                DSBrandMark(size: 64)
+                DSScreenHeading(title: "Linux on your iPhone", message: "LinuxRunner runs real ARM64 Linux programs with its own interpreter. There is no virtual machine.")
             }
-            let installed = manager.environments.filter { ($0.distributionID ?? "alpine") == distribution }
-            if !installed.isEmpty {
-                Section("Already Installed") {
-                    ForEach(installed) { environment in
-                        Button("Configure " + environment.name) { configureExisting(environment) }
+            VStack(alignment: .leading, spacing: DS.Space.md) {
+                featureRow("square.stack.3d.up", "Install a distribution", "Debian, Arch, Fedora, Kali, Alpine or SteamOS.")
+                featureRow("person.crop.circle", "Create your account", "Your own Linux user, with sudo if you want it.")
+                featureRow("macwindow", "Choose a desktop", "A graphical desktop on this screen or an external display.")
+            }
+            .dsCard()
+            if !manager.environments.isEmpty {
+                DSNotice(text: "Configure an existing environment or install another distribution. Your files and accounts are preserved.", symbol: "info.circle.fill", tone: .info)
+            }
+            VStack(spacing: DS.Space.sm) {
+                Button("Continue") { stepRaw = SetupStep.distribution.rawValue }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                Text("Everything can be changed later in Settings.").font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary).frame(maxWidth: .infinity)
+            }
+        case .distribution:
+            DSScreenHeading(title: "Choose a distribution", message: "Each distribution keeps its own packages and files. You can add more later.")
+            VStack(spacing: DS.Space.sm) {
+                ForEach(CatalogDistribution.all) { item in
+                    Button { distribution = item.id } label: {
+                        HStack(spacing: DS.Space.md) {
+                            DistroBadge(distributionID: item.id, size: 44)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.id == "kali" ? "Kali Linux \(KaliImage.version)" : item.name).font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                                HStack(spacing: DS.Space.xs) {
+                                    Text(item.summary).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
+                                    if item.experimental { DSBadge(text: "Experimental", tone: .warning) }
+                                }
+                            }
+                            Spacer(minLength: 28)
+                        }
+                        .dsSelectable(distribution == item.id)
                     }
-                    Text("Uses the existing environment, accounts and files. Switching environments takes effect after relaunch.").font(.footnote).foregroundStyle(.secondary)
+                    .buttonStyle(DSPressableStyle())
+                    .accessibilityLabel(item.name)
                 }
             }
-            Section { Button(installed.isEmpty ? "Continue" : "Install Another Environment") { stepRaw = SetupStep.install.rawValue } }
+            if let note = distributionNote { DSNotice(text: note.0, symbol: note.1 == .warning ? "exclamationmark.triangle.fill" : "info.circle.fill", tone: note.1) }
+            let installed = manager.environments.filter { ($0.distributionID ?? "alpine") == distribution }
+            if !installed.isEmpty {
+                VStack(alignment: .leading, spacing: DS.Space.sm) {
+                    Text("Already installed").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                    ForEach(installed) { environment in
+                        Button("Configure " + environment.name) { configureExisting(environment) }.buttonStyle(DSButtonStyle(.secondary, fullWidth: true))
+                    }
+                    Text("Uses the existing environment, accounts and files. Switching environments takes effect after relaunch.").font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
+                }
+            }
+            Button(installed.isEmpty ? "Continue" : "Install Another Environment") { stepRaw = SetupStep.install.rawValue }
+                .buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
         case .install: install
         case .relaunch:
-            Section { Text("Linux is installed and selected. Close LinuxRunner completely (swipe it away in the app switcher) and open it again — setup continues with your account.") }
-            Section { Text("iOS allows one Linux runtime per app launch, so this restart is needed once.").font(.footnote).foregroundStyle(.secondary) }
+            DSScreenHeading(title: "Restart LinuxRunner", message: "Linux is installed and selected. One restart starts it.")
+            VStack(alignment: .leading, spacing: DS.Space.md) {
+                numberedRow(1, "Swipe LinuxRunner away in the app switcher.")
+                numberedRow(2, "Open LinuxRunner again.")
+                numberedRow(3, "Setup continues with your account.")
+            }
+            .dsCard()
+            DSNotice(text: "iOS allows one Linux runtime per app launch, so this restart is needed once.", symbol: "info.circle.fill", tone: .info)
         case .account: account
         case .desktop: desktop
         case .done:
-            Section { Label("Linux is ready", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("Add applications any time from Packages › App Catalog.").font(.footnote).foregroundStyle(.secondary) }
-            Section { Button { stepRaw = SetupStep.welcome.rawValue; setupRoot = ""; dismiss(); openDesktop() } label: { Label("Open Desktop", systemImage: "desktopcomputer").font(.headline) }.disabled(!LRRuntimeBridge.isRunning()) }
+            VStack(spacing: DS.Space.md) {
+                DSIconTile(symbol: "checkmark", tone: .success, size: 64)
+                Text("Linux is ready").font(.title2.weight(.bold)).foregroundColor(DS.Palette.textPrimary)
+                Text("Add applications any time from the App Store on Home.").font(DS.Font.detail).foregroundColor(DS.Palette.textSecondary).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, DS.Space.xl)
+            Button { stepRaw = SetupStep.welcome.rawValue; setupRoot = ""; dismiss(); openDesktop() } label: { Label("Open Desktop", systemImage: "desktopcomputer") }
+                .buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                .disabled(!LRRuntimeBridge.isRunning())
         }
-        if let working { Section { HStack(spacing: 12) { ProgressView(); Text(working) } } }
-        if let problem { Section { Text(problem).foregroundStyle(.red) } }
+    }
+
+    private func featureRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: DS.Space.sm) {
+            DSIconTile(symbol: symbol, tone: .accent, size: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary)
+                Text(detail).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func numberedRow(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: DS.Space.sm) {
+            Text("\(number)").font(DS.Font.mono.weight(.semibold)).foregroundColor(DS.Palette.accent).frame(width: 22, height: 22).background(Circle().fill(DS.Palette.accent.opacity(0.14)))
+            Text(text).font(DS.Font.detail).foregroundColor(DS.Palette.textPrimary).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// One installer's controls: progress and Cancel while running, otherwise Install; failures with Try Again.
+    @ViewBuilder private func installerControls(running: Bool, message: String, fraction: Double, cancel: @escaping () -> Void, installTitle: String, disabled: Bool, failure: String?, footer: String) -> some View {
+        if running {
+            VStack(alignment: .leading, spacing: DS.Space.sm) {
+                Text(message).font(DS.Font.detail).foregroundColor(DS.Palette.textPrimary).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: DS.Space.sm) {
+                    ProgressView(value: fraction).tint(DS.Palette.accent)
+                    Text("\(Int(fraction * 100))%").font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).frame(minWidth: 36, alignment: .trailing)
+                }
+                Text("Keep LinuxRunner open until this finishes.").font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary)
+            }
+            .dsCard()
+            Button("Cancel", role: .destructive, action: cancel).buttonStyle(DSButtonStyle(.destructive, fullWidth: true))
+        } else {
+            Button(installTitle) { startInstall() }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true)).disabled(disabled)
+        }
+        if let failure {
+            DSNotice(text: failure, symbol: "exclamationmark.triangle.fill", tone: .danger)
+            Button("Try Again") { startInstall() }.buttonStyle(DSButtonStyle(.secondary, fullWidth: true))
+        }
+        Text(footer).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder private var install: some View {
@@ -101,127 +229,175 @@ struct SetupWizardView: View {
         let alpineBytes = Int64((try? Bundle.main.url(forResource: "root", withExtension: "tar.gz")?.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
         let download = distribution == "debian" ? (manifest?.downloadBytes ?? 0) : distribution == "fedora" ? FedoraImage.bytes : distribution == "kali" ? KaliImage.bytes : 0
         let installed = distribution == "debian" ? (manifest?.installedBytes ?? 0) : alpineBytes * 3
-        Section("Storage") {
-            row("Download", distribution == "steamos" ? (steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil ? "Already downloaded" : ByteCountFormatter.string(fromByteCount: steamManifest?.source?.bytes ?? 0, countStyle: .file) + " from Valve") : distribution == "arch" ? "Calculated from the signed package selection" : ["debian", "fedora", "kali"].contains(distribution) ? ByteCountFormatter.string(fromByteCount: download, countStyle: .file) : "None (included in the app)")
-            row(distribution == "debian" || distribution == "steamos" ? "Installed size" : "Installed size (estimate)", distribution == "steamos" ? ByteCountFormatter.string(fromByteCount: steamManifest?.installedBytes ?? 0, countStyle: .file) : distribution == "arch" ? "At least 1.5 GB free for base installation" : distribution == "fedora" ? "At least 2 GB free for base installation" : distribution == "kali" ? "About 0.9 GB base; desktop about 2 GB more; standard tools about 6 GB more" : ByteCountFormatter.string(fromByteCount: installed, countStyle: .file))
-            row("Available", ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
+        HStack(spacing: DS.Space.md) {
+            DistroBadge(distributionID: distribution, size: 48)
+            DSScreenHeading(title: "Install \(selectedDistributionName)", message: "Check the space it needs, then install.")
         }
+        VStack(spacing: DS.Space.sm) {
+            DSKeyValueRow(key: "Download", value: distribution == "steamos" ? (steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil ? "Already downloaded" : ByteCountFormatter.string(fromByteCount: steamManifest?.source?.bytes ?? 0, countStyle: .file) + " from Valve") : distribution == "arch" ? "Calculated from the signed package selection" : ["debian", "fedora", "kali"].contains(distribution) ? ByteCountFormatter.string(fromByteCount: download, countStyle: .file) : "None (included in the app)")
+            Divider().overlay(DS.Palette.border)
+            DSKeyValueRow(key: distribution == "debian" || distribution == "steamos" ? "Installed size" : "Installed size (estimate)", value: distribution == "steamos" ? ByteCountFormatter.string(fromByteCount: steamManifest?.installedBytes ?? 0, countStyle: .file) : distribution == "arch" ? "At least 1.5 GB free for base installation" : distribution == "fedora" ? "At least 2 GB free for base installation" : distribution == "kali" ? "About 0.9 GB base; desktop about 2 GB more; standard tools about 6 GB more" : ByteCountFormatter.string(fromByteCount: installed, countStyle: .file))
+            Divider().overlay(DS.Palette.border)
+            DSKeyValueRow(key: "Available", value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
+        }
+        .dsCard()
         if distribution == "debian" {
-            Section {
-                if debian.running { Text(debian.message); ProgressView(value: debian.fraction); Button("Cancel", role: .destructive) { debian.cancel() } }
-                else { Button("Install Debian") { startInstall() }.disabled(free < max(Int64(1 << 30), download + installed)) }
-                if let failure = debian.failure { Text(failure).foregroundStyle(.red); Button("Try Again") { startInstall() } }
-            } footer: { Text("Official Debian packages, checked against Debian's signed index. The desktop, sound and account tools are added in the next steps.") }
+            installerControls(running: debian.running, message: debian.message, fraction: debian.fraction, cancel: { debian.cancel() }, installTitle: "Install Debian",
+                              disabled: free < max(Int64(1 << 30), download + installed), failure: debian.failure,
+                              footer: "Official Debian packages, checked against Debian's signed index. The desktop, sound and account tools are added in the next steps.")
         } else if distribution == "arch" {
-            Section {
-                if arch.running { Text(arch.message); ProgressView(value: arch.fraction); Button("Cancel", role: .destructive) { arch.cancel() } }
-                else { Button("Install Arch Linux ARM") { startInstall() }.disabled(free < Int64(1_500_000_000)) }
-                if let failure = arch.failure { Text(failure).foregroundStyle(.red); Button("Try Again") { startInstall() } }
-            } footer: { Text("Official signed Arch Linux ARM packages. Verified downloads are kept for retry. First-start configuration finishes before desktop packages are installed.") }
+            installerControls(running: arch.running, message: arch.message, fraction: arch.fraction, cancel: { arch.cancel() }, installTitle: "Install Arch Linux ARM",
+                              disabled: free < Int64(1_500_000_000), failure: arch.failure,
+                              footer: "Official signed Arch Linux ARM packages. Verified downloads are kept for retry. First-start configuration finishes before desktop packages are installed.")
         } else if distribution == "fedora" {
-            Section {
-                if fedora.running { Text(fedora.message); ProgressView(value: fedora.fraction); Button("Cancel", role: .destructive) { fedora.cancel() } }
-                else { Button("Install Fedora Linux") { startInstall() }.disabled(free < Int64(2_000_000_000)) }
-                if let failure = fedora.failure { Text(failure).foregroundStyle(.red); Button("Try Again") { startInstall() } }
-            } footer: { Text("Authenticates Fedora's official AArch64 WSL userspace image; runs it with LinuxRunner, without WSL, a Linux kernel or systemd. The lightweight GTK/X11 desktop and experimental KDE Plasma are available. Fedora sound is not yet qualified.") }
+            installerControls(running: fedora.running, message: fedora.message, fraction: fedora.fraction, cancel: { fedora.cancel() }, installTitle: "Install Fedora Linux",
+                              disabled: free < Int64(2_000_000_000), failure: fedora.failure,
+                              footer: "Authenticates Fedora's official AArch64 WSL userspace image; runs it with LinuxRunner, without WSL, a Linux kernel or systemd. The lightweight GTK/X11 desktop and experimental KDE Plasma are available. Fedora sound is not yet qualified.")
         } else if distribution == "kali" {
-            Section {
-                if kali.running { Text(kali.message); ProgressView(value: kali.fraction); Button("Cancel", role: .destructive) { kali.cancel() } }
-                else { Button("Install Kali Linux") { startInstall() }.disabled(free < Int64(2_000_000_000)) }
-                if let failure = kali.failure { Text(failure).foregroundStyle(.red); Button("Try Again") { startInstall() } }
-            } footer: { Text("Kali's official ARM64 root filesystem (\(KaliImage.version)), checked against its published SHA-256; packages come from Kali's signed archive. The image's preset root and kali passwords are locked at first start; you create your own account next. Runs with LinuxRunner, without a Linux kernel or systemd.") }
+            installerControls(running: kali.running, message: kali.message, fraction: kali.fraction, cancel: { kali.cancel() }, installTitle: "Install Kali Linux",
+                              disabled: free < Int64(2_000_000_000), failure: kali.failure,
+                              footer: "Kali's official ARM64 root filesystem (\(KaliImage.version)), checked against its published SHA-256; packages come from Kali's signed archive. The image's preset root and kali passwords are locked at first start; you create your own account next. Runs with LinuxRunner, without a Linux kernel or systemd.")
         } else if distribution == "steamos" {
-            Section {
-                Text(steamos.message)
-                if steamos.running {
-                    ProgressView(value: steamos.fraction)
-                    Button("Cancel Installation", role: .destructive) { steamos.cancel() }
-                } else {
-                    let required = steamManifest?.directRequiredFreeBytes(imagePresent: steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil) ?? .max
-                    Button(steamos.failure == nil ? "Install SteamOS" : "Try Again") { installSteamOSFromValve() }
-                        .disabled(steamManifest?.supportsDirectInstall != true || free < required)
-                    if free < required, required != .max {
-                        Text("Needs " + ByteCountFormatter.string(fromByteCount: required, countStyle: .file) + " free while installing; about " + ByteCountFormatter.string(fromByteCount: steamManifest?.streamInstalledBytes ?? 0, countStyle: .file) + " stays in use afterwards.").foregroundStyle(.secondary)
-                    }
-                    if FileManager.default.fileExists(atPath: SteamOSInstaller.preparedArchiveURL.path) {
-                        Button("Install Prepared SteamOS Archive") { installSteamOS(from: SteamOSInstaller.preparedArchiveURL) }
-                            .disabled(steamManifest == nil || free < (steamManifest?.requiredFreeBytes ?? Int64.max))
-                    }
+            VStack(alignment: .leading, spacing: DS.Space.sm) {
+                Text(steamos.message).font(DS.Font.detail).foregroundColor(DS.Palette.textPrimary).fixedSize(horizontal: false, vertical: true)
+                if steamos.running { ProgressView(value: steamos.fraction).tint(DS.Palette.accent) }
+            }
+            .dsCard()
+            if steamos.running {
+                Button("Cancel Installation", role: .destructive) { steamos.cancel() }.buttonStyle(DSButtonStyle(.destructive, fullWidth: true))
+            } else {
+                let required = steamManifest?.directRequiredFreeBytes(imagePresent: steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil) ?? .max
+                Button(steamos.failure == nil ? "Install SteamOS" : "Try Again") { installSteamOSFromValve() }
+                    .buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                    .disabled(steamManifest?.supportsDirectInstall != true || free < required)
+                if free < required, required != .max {
+                    DSNotice(text: "Needs " + ByteCountFormatter.string(fromByteCount: required, countStyle: .file) + " free while installing; about " + ByteCountFormatter.string(fromByteCount: steamManifest?.streamInstalledBytes ?? 0, countStyle: .file) + " stays in use afterwards.", symbol: "internaldrive", tone: .warning)
                 }
-                if let failure = steamos.failure { Text(failure).foregroundStyle(.red) }
-                if steamManifest == nil { Text("This build has no supported SteamOS manifest.").foregroundStyle(.secondary) }
-            } footer: { Text("Downloads Valve's SteamFrame recovery image from Valve's server, checks its published SHA-256, and installs its ARM64 system with a terminal and the Plasma X11 desktop. Two display packages (x11vnc, libvncserver) come from Arch Linux ARM with pinned checksums. The download is removed after installation. Keep LinuxRunner open while it installs.") }
+                if FileManager.default.fileExists(atPath: SteamOSInstaller.preparedArchiveURL.path) {
+                    Button("Install Prepared SteamOS Archive") { installSteamOS(from: SteamOSInstaller.preparedArchiveURL) }
+                        .buttonStyle(DSButtonStyle(.secondary, fullWidth: true))
+                        .disabled(steamManifest == nil || free < (steamManifest?.requiredFreeBytes ?? Int64.max))
+                }
+            }
+            if let failure = steamos.failure { DSNotice(text: failure, symbol: "exclamationmark.triangle.fill", tone: .danger) }
+            if steamManifest == nil { DSNotice(text: "This build has no supported SteamOS manifest.", symbol: "info.circle.fill", tone: .neutral) }
+            Text("Downloads Valve's SteamFrame recovery image from Valve's server, checks its published SHA-256, and installs its ARM64 system with a terminal and the Plasma X11 desktop. Two display packages (x11vnc, libvncserver) come from Arch Linux ARM with pinned checksums. The download is removed after installation. Keep LinuxRunner open while it installs.")
+                .font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
         } else if distribution == "alpine" {
-            Section { if manager.busy { ProgressView("Unpacking Alpine Linux…") } else { Button("Install Alpine") { startInstall() } }
-                if let error = manager.error { Text(error).foregroundStyle(.red) } }
+            if manager.busy {
+                HStack(spacing: DS.Space.sm) { ProgressView(); Text("Unpacking Alpine Linux…").font(DS.Font.detail).foregroundColor(DS.Palette.textSecondary); Spacer(minLength: 0) }.dsCard()
+            } else {
+                Button("Install Alpine") { startInstall() }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+            }
+            if let error = manager.error { DSNotice(text: error, symbol: "exclamationmark.triangle.fill", tone: .danger) }
         }
     }
 
     @ViewBuilder private var account: some View {
         if !LRRuntimeBridge.isRunning() || (!setupRoot.isEmpty && LRRuntimeBridge.activeRootName() != setupRoot) {
-            Section { Text("Close LinuxRunner completely and open it again to continue.") }
+            DSScreenHeading(title: "Your account")
+            DSNotice(text: "Close LinuxRunner completely and open it again to continue.", symbol: "arrow.clockwise", tone: .info)
         } else {
             let existing = LRRuntimeBridge.linuxAccounts().filter { $0["name"] != "root" && ($0["uid"].flatMap(Int.init) ?? 0) >= 1000 }
+            DSScreenHeading(title: "Your account", message: "The Linux user you work as in the terminal and on the desktop.")
             if !existing.isEmpty {
-                Section("Use an existing account") {
-                    ForEach(existing, id: \.self) { account in Button(account["name"] ?? "") { useAccount(account["name"] ?? "") }.disabled(working != nil) }
+                VStack(alignment: .leading, spacing: DS.Space.sm) {
+                    Text("Use an existing account").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                    ForEach(existing, id: \.self) { account in
+                        Button { useAccount(account["name"] ?? "") } label: {
+                            HStack(spacing: DS.Space.sm) {
+                                DSIconTile(symbol: "person", size: 32)
+                                Text(account["name"] ?? "").font(DS.Font.mono).foregroundColor(DS.Palette.textPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundColor(DS.Palette.textTertiary)
+                            }
+                            .dsCard(padding: DS.Space.sm)
+                        }
+                        .buttonStyle(DSPressableStyle()).disabled(working != nil)
+                        .accessibilityLabel(account["name"] ?? "")
+                    }
                 }
             }
-            Section(existing.isEmpty ? "Create your account" : "Or create a new account") {
-                TextField("Username", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username)
-                SecureField("Password", text: $password).textContentType(.newPassword)
-                SecureField("Confirm password", text: $confirmation).textContentType(.newPassword)
-                Toggle("Administrator (can use sudo)", isOn: $administrator)
-                Button("Create Account") { createAccount() }.disabled(working != nil || username.isEmpty || password.isEmpty || password != confirmation)
-                if !confirmation.isEmpty && password != confirmation { Text("The passwords do not match.").font(.footnote).foregroundStyle(.orange) }
+            VStack(alignment: .leading, spacing: DS.Space.md) {
+                Text(existing.isEmpty ? "Create your account" : "Or create a new account").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                DSTextField(title: "Username", text: $username, contentType: .username)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                DSTextField(title: "Password", text: $password, secure: true, contentType: .newPassword)
+                DSTextField(title: "Confirm password", text: $confirmation, secure: true, contentType: .newPassword)
+                if !confirmation.isEmpty && password != confirmation {
+                    Label("The passwords do not match.", systemImage: "exclamationmark.circle.fill").font(DS.Font.caption).foregroundColor(DS.Palette.warning)
+                }
+                Toggle(isOn: $administrator) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Administrator").font(DS.Font.label).foregroundColor(DS.Palette.textPrimary)
+                        Text("Can use sudo to install packages").font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
+                    }
+                }
+                .accessibilityLabel("Administrator (can use sudo)")
             }
-            Section { Text("Lowercase letters, digits, - and _. LinuxRunner stores only Linux's own password hash, never the password.").font(.footnote).foregroundStyle(.secondary) }
+            .dsCard()
+            Button("Create Account") { createAccount() }
+                .buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                .disabled(working != nil || username.isEmpty || password.isEmpty || password != confirmation)
+            Text("Lowercase letters, digits, - and _. LinuxRunner stores only Linux's own password hash, never the password.")
+                .font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
     @ViewBuilder private var desktop: some View {
         if LRRuntimeBridge.activeEnvironmentIsSteamOS() {
-            Section {
-                Label("SteamOS Plasma X11", systemImage: "desktopcomputer")
-                Text("SteamOS includes the Plasma desktop; LinuxRunner adds its display bridge. This experiment uses software rendering.")
-                if desktopReady { Label("Desktop components checked", systemImage: "checkmark"); Button("Continue") { stepRaw = SetupStep.done.rawValue } }
-                else { Button("Check SteamOS Desktop") { prepareDesktop() }.disabled(working != nil) }
+            DSScreenHeading(title: "SteamOS Plasma X11", message: "SteamOS includes the Plasma desktop; LinuxRunner adds its display bridge. This experiment uses software rendering.")
+            if desktopReady {
+                Label("Desktop components checked", systemImage: "checkmark.circle.fill").font(DS.Font.label).foregroundColor(DS.Palette.success)
+                Button("Continue") { stepRaw = SetupStep.done.rawValue }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+            } else {
+                Button("Check SteamOS Desktop") { prepareDesktop() }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true)).disabled(working != nil)
             }
         } else {
-        let distro = DesktopCatalog.activeDistribution()
-        Section(header: Text("Choose a Desktop"), footer: Text("Each desktop comes from \(DesktopCatalog.distributionName(distro))'s own packages (network needed). The display, input and file-sharing components every desktop uses are installed first. You can add or switch desktops later in Settings › Desktop Environment; existing settings and files are kept.")) {
-            ForEach(DesktopCatalog.options) { option in desktopChoiceRow(option, distro: distro) }
-        }
-        .onAppear { if distro == "kali" && chosenDesktop == "linuxrunner" { chosenDesktop = "xfce" } }
-        Section {
-            let chosen = DesktopCatalog.option(chosenDesktop)
-            if let working {
-                HStack { ProgressView(); Text(working).font(.callout) }
-            } else if desktopReady && DesktopCatalog.isInstalled(chosen.id) {
-                Label("\(chosen.title) is installed and selected", systemImage: "checkmark.circle.fill")
-                Button("Continue") { stepRaw = SetupStep.done.rawValue }
-            } else {
-                Button(DesktopCatalog.isInstalled(chosen.id) && desktopReady ? "Use \(chosen.title)" : "Install \(chosen.title)") { installChosenDesktop() }
-                    .disabled(DesktopCatalog.unavailableReason(chosen.id, distro) != nil)
-                if problem != nil { Button("Retry") { installChosenDesktop() } }
+            let distro = DesktopCatalog.activeDistribution()
+            DSScreenHeading(title: "Choose a desktop", message: "Installed from \(DesktopCatalog.distributionName(distro))'s own packages (network needed). You can add or switch desktops later in Settings.")
+            VStack(spacing: DS.Space.sm) {
+                ForEach(DesktopCatalog.options) { option in desktopChoiceRow(option, distro: distro) }
             }
-        } footer: {
-            if problem != nil { Text("The package log is kept; Settings › Repair Center can check and repair the package database without deleting your files.") }
-        }
-        if distro == "kali" && desktopReady {
-            Section(header: Text("Kali Tools (Optional)"), footer: Text("Kali's standard tool selection (kali-linux-default) from Kali's signed archive: about 1.5 GB to download and 6 GB installed. Tools that need kernel access, such as monitor-mode Wi-Fi, raw packet capture or kernel modules, install but cannot use those features on iOS.")) {
-                if LRRuntimeBridge.kaliToolsInstalled() || extraDesktops.contains("kali-tools") { Label("Kali standard tools installed", systemImage: "checkmark") }
-                else {
-                    Button("Install Kali Standard Tools") {
-                        problem = nil; working = "Kali tools: starting"
-                        LRRuntimeBridge.installKaliTools({ working = "Kali tools: \($0)" }) { error in
-                            working = nil
-                            if let error { problem = error.localizedDescription } else { extraDesktops.insert("kali-tools") }
-                        }
-                    }.disabled(working != nil)
+            .onAppear { if distro == "kali" && chosenDesktop == "linuxrunner" { chosenDesktop = "xfce" } }
+            let chosen = DesktopCatalog.option(chosenDesktop)
+            if working == nil {
+                if desktopReady && DesktopCatalog.isInstalled(chosen.id) {
+                    Label("\(chosen.title) is installed and selected", systemImage: "checkmark.circle.fill").font(DS.Font.label).foregroundColor(DS.Palette.success)
+                    Button("Continue") { stepRaw = SetupStep.done.rawValue }.buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                } else {
+                    Button(DesktopCatalog.isInstalled(chosen.id) && desktopReady ? "Use \(chosen.title)" : "Install \(chosen.title)") { installChosenDesktop() }
+                        .buttonStyle(DSButtonStyle(.primary, size: .large, fullWidth: true))
+                        .disabled(DesktopCatalog.unavailableReason(chosen.id, distro) != nil)
+                    if problem != nil {
+                        Button("Retry") { installChosenDesktop() }.buttonStyle(DSButtonStyle(.secondary, fullWidth: true))
+                        Text("The package log is kept; Settings › Repair Center can check and repair the package database without deleting your files.").font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
+                    }
                 }
             }
-        }
+            if distro == "kali" && desktopReady {
+                VStack(alignment: .leading, spacing: DS.Space.sm) {
+                    HStack(spacing: DS.Space.sm) {
+                        DSIconTile(symbol: "shield.lefthalf.filled", tone: .accent, size: 32)
+                        Text("Kali tools (optional)").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+                    }
+                    Text("Kali's standard tool selection (kali-linux-default) from Kali's signed archive: about 1.5 GB to download and 6 GB installed. Tools that need kernel access, such as monitor-mode Wi-Fi, raw packet capture or kernel modules, install but cannot use those features on iOS.")
+                        .font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+                    if LRRuntimeBridge.kaliToolsInstalled() || extraDesktops.contains("kali-tools") {
+                        Label("Kali standard tools installed", systemImage: "checkmark.circle.fill").font(DS.Font.label).foregroundColor(DS.Palette.success)
+                    } else {
+                        Button("Install Kali Standard Tools") {
+                            problem = nil; working = "Kali tools: starting"
+                            LRRuntimeBridge.installKaliTools({ working = "Kali tools: \($0)" }) { error in
+                                working = nil
+                                if let error { problem = error.localizedDescription } else { extraDesktops.insert("kali-tools") }
+                            }
+                        }
+                        .buttonStyle(DSButtonStyle(.secondary, fullWidth: true)).disabled(working != nil)
+                    }
+                }
+                .dsCard()
+            }
         }
     }
 
@@ -229,30 +405,30 @@ struct SetupWizardView: View {
         let reason = DesktopCatalog.unavailableReason(option.id, distro)
         let selected = chosenDesktop == option.id && reason == nil
         Button { if reason == nil { chosenDesktop = option.id; problem = nil } } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(reason == nil ? Color.accentColor : Color.secondary).font(.title3)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(option.title).foregroundStyle(reason == nil ? Color.primary : Color.secondary)
-                        ForEach(option.badges(distro), id: \.self) { badge in
-                            Text(badge).font(.caption2.weight(.semibold)).padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Capsule().fill((badge == "Recommended" ? Color.accentColor : Color.secondary).opacity(0.15)))
-                        }
-                        if DesktopCatalog.isInstalled(option.id) && desktopReady { Text("Installed").font(.caption2).foregroundStyle(.green) }
-                    }
-                    Text(option.detail).font(.caption).foregroundStyle(.secondary)
-                    if let reason { Label(reason, systemImage: "info.circle").font(.caption).foregroundStyle(.orange) }
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: DS.Space.xs) {
+                    Text(option.title).font(DS.Font.cardTitle).foregroundColor(reason == nil ? DS.Palette.textPrimary : DS.Palette.textSecondary)
+                    if DesktopCatalog.isInstalled(option.id) && desktopReady { DSBadge(text: "Installed", tone: .success) }
                 }
+                if !option.badges(distro).isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(option.badges(distro), id: \.self) { badge in
+                            DSBadge(text: badge, tone: badge == "Recommended" ? .accent : badge == "Experimental" ? .warning : .neutral)
+                        }
+                    }
+                }
+                Text(option.detail).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+                if let reason { Label(reason, systemImage: "info.circle").font(DS.Font.caption).foregroundColor(DS.Palette.warning).fixedSize(horizontal: false, vertical: true) }
             }
+            .padding(.trailing, 28)
+            .dsSelectable(selected, enabled: reason == nil)
         }
+        .buttonStyle(DSPressableStyle())
         .disabled(working != nil || reason != nil)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityHint(reason ?? "Selects this desktop")
     }
-
-    private func row(_ title: String, _ value: String) -> some View { HStack { Text(title); Spacer(); Text(value).foregroundStyle(.secondary) } }
 
     private func resume() {
         if step == .relaunch, LRRuntimeBridge.isRunning(), LRRuntimeBridge.activeRootName() == setupRoot { stepRaw = SetupStep.account.rawValue }

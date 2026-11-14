@@ -256,6 +256,83 @@ struct DSRowLabel: View {
     }
 }
 
+// MARK: - Inputs and selection
+
+/// Labelled text or password field with a visible focus state.
+struct DSTextField: View {
+    let title: String
+    @Binding var text: String
+    var secure = false
+    var contentType: UITextContentType?
+    @FocusState private var focused: Bool
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(DS.Font.overline).foregroundColor(DS.Palette.textSecondary).accessibilityHidden(true)
+            Group {
+                if secure { SecureField(title, text: $text) } else { TextField(title, text: $text) }
+            }
+            .textContentType(contentType)
+            .focused($focused)
+            .font(DS.Font.body)
+            .foregroundColor(DS.Palette.textPrimary)
+            .padding(.horizontal, DS.Space.sm)
+            .frame(minHeight: 46)
+            .background(RoundedRectangle.ds(DS.Radius.md).fill(DS.Palette.surfaceRaised))
+            .overlay(RoundedRectangle.ds(DS.Radius.md).stroke(focused ? DS.Palette.accent : DS.Palette.border, lineWidth: focused ? 1.5 : 1))
+            .animation(.easeOut(duration: 0.12), value: focused)
+        }
+    }
+}
+
+extension View {
+    /// Card that can be chosen: accent border and check mark when selected.
+    func dsSelectable(_ selected: Bool, enabled: Bool = true) -> some View {
+        self
+            .padding(DS.Space.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle.ds(DS.Radius.lg).fill(selected ? DS.Palette.accent.opacity(0.08) : DS.Palette.surface))
+            .overlay(RoundedRectangle.ds(DS.Radius.lg).stroke(selected ? DS.Palette.accent : DS.Palette.border, lineWidth: selected ? 1.5 : 1))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3).foregroundColor(selected ? DS.Palette.accent : DS.Palette.textTertiary)
+                    .padding(DS.Space.sm).opacity(enabled ? 1 : 0.4)
+                    .accessibilityHidden(true)
+            }
+            .opacity(enabled ? 1 : 0.55)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// "Step 2 of 5" with a segmented bar.
+struct DSStepIndicator: View {
+    let current: Int
+    let total: Int
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Space.xs) {
+            Text("Step \(current) of \(total)").font(DS.Font.overline).foregroundColor(DS.Palette.textSecondary)
+            HStack(spacing: 4) {
+                ForEach(1...total, id: \.self) { index in
+                    Capsule().fill(index <= current ? DS.Palette.accent : DS.Palette.border).frame(height: 4)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(current) of \(total)")
+    }
+}
+
+/// Heading at the top of a full-screen step: title and a short explanation.
+struct DSScreenHeading: View {
+    let title: String
+    var message: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Space.xs) {
+            Text(title).font(.title2.weight(.bold)).foregroundColor(DS.Palette.textPrimary).accessibilityAddTraits(.isHeader)
+            if let message { Text(message).font(DS.Font.detail).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true) }
+        }
+    }
+}
+
 // MARK: - Buttons
 
 struct DSButtonStyle: ButtonStyle {
