@@ -262,6 +262,6 @@ Most users install the IPA. Developers should follow [Building](docs/BUILDING.md
 
 ## License and Acknowledgments
 
-Maintained by **Leminos ([mxhm11cr](https://github.com/mxhm11cr))**. LinuxRunner derives from [iSH](https://github.com/ish-app/ish), by Theodore Dubois and contributors, through [ios-linuxkit](https://github.com/rcarmo/ios-linuxkit), by Rui Carmo and contributors.
+Maintained by **[jacktembo](https://github.com/jacktembo)**. LinuxRunner derives from [iSH](https://github.com/ish-app/ish), by Theodore Dubois and contributors, through [ios-linuxkit](https://github.com/rcarmo/ios-linuxkit), by Rui Carmo and contributors.
 
 The combined application is GPL-3.0-covered. Preserve upstream contribution-specific terms, attribution and the App Store terms in [LICENSE.md](LICENSE.md) and [LICENSE.IOS](LICENSE.IOS). Graphics, terminals, fonts, Linux distributions, desktops and applications retain their own licenses and authorship. In particular, Metal integration uses Mesa/virgl, virglrenderer, libepoxy and ANGLE. [Third-party notices](THIRD_PARTY_NOTICES.md)

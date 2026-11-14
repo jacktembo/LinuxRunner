@@ -1,6 +1,6 @@
 LinuxRunner — source provenance
 
-Maintainer: Leminos (mxhm11cr)
+Maintainer: jacktembo (https://github.com/jacktembo)
 Direct upstream: https://github.com/rcarmo/ios-linuxkit
 Earlier upstream: https://github.com/ish-app/ish
 Upstream base revision: abe413540d4ff8b4ad6b52447ab80f824c58495f
