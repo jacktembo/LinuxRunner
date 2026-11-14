@@ -17,17 +17,17 @@ enum DS {
     enum Palette {
         /// Screen background.
         static let background = dynamic(dark: 0x0B0B0D, light: 0xF4F4F6)
-        /// Cards, list rows, grouped content.
-        static let surface = dynamic(dark: 0x151518, light: 0xFFFFFF)
+        /// Cards, list rows, grouped content. Dark value matches the system grouped-list rows.
+        static let surface = dynamic(dark: 0x1C1C1E, light: 0xFFFFFF)
         /// Elements placed on a surface: icon tiles, inputs, nested panels.
-        static let surfaceRaised = dynamic(dark: 0x1F1F24, light: 0xEFEFF3)
+        static let surfaceRaised = dynamic(dark: 0x2A2A2F, light: 0xEFEFF3)
         /// Hairline borders and dividers.
-        static let border = dynamic(dark: 0x26262C, light: 0xE2E2E8)
+        static let border = dynamic(dark: 0x2C2C31, light: 0xE2E2E8)
         static let textPrimary = dynamic(dark: 0xF4F4F5, light: 0x111114)
         /// Secondary text; at least 4.5:1 on surface in both modes.
         static let textSecondary = dynamic(dark: 0xA1A1AA, light: 0x5C5C66)
         /// Tertiary text for non-essential captions.
-        static let textTertiary = dynamic(dark: 0x7C7C86, light: 0x75757F)
+        static let textTertiary = dynamic(dark: 0x8A8A93, light: 0x75757F)
         /// Brand signal orange (from the app icon). Primary actions and active states only.
         static let accent = dynamic(dark: 0xFF7A1A, light: 0xC2410C)
         /// Text and symbols placed on an accent fill.
@@ -432,7 +432,7 @@ enum DSAppearance {
     /// follow these colours; overriding them there hides large titles.
     static func applyBarAppearance() {
         if #available(iOS 26.0, *) { return }
-        let border = UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: 0xE2E2E8) : UIColor(hex: 0x26262C) }
+        let border = UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: 0xE2E2E8) : UIColor(hex: 0x2C2C31) }
         let background = UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: 0xF4F4F6) : UIColor(hex: 0x0B0B0D) }
         let title = UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: 0x111114) : UIColor(hex: 0xF4F4F5) }
 

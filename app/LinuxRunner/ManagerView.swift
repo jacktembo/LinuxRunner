@@ -251,11 +251,11 @@ private struct SetPasswordSheet: View {
             Form {
                 SecureField("New password", text: $password).textContentType(.newPassword)
                 SecureField("Confirm password", text: $confirmation).textContentType(.newPassword)
-                if !confirmation.isEmpty && password != confirmation { Text("The passwords do not match.").foregroundStyle(.orange) }
+                if !confirmation.isEmpty && password != confirmation { Text("The passwords do not match.").foregroundStyle(DS.Palette.warning) }
                 if let working { HStack(spacing: 10) { ProgressView(); Text(working) } }
-                if let problem { Text(problem).foregroundStyle(.red) }
+                if let problem { Text(problem).foregroundStyle(DS.Palette.danger) }
             }
-            .navigationTitle("Password for \(name)")
+            .dsListStyle().navigationTitle("Password for \(name)")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(working != nil) }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") {
@@ -346,9 +346,9 @@ private struct LinuxUsersView: View {
                 Button("Refresh Accounts", action: refresh).disabled(!running)
                 Text("System users without a login shell are omitted. Removing an account preserves its home and files; their numeric ownership remains. System accounts and the default login are protected.").font(.caption).foregroundColor(.secondary)
             }
-            if let error { Section("Account Operation") { Text(error).foregroundColor(.red) } }
+            if let error { Section("Account Operation") { Text(error).foregroundColor(DS.Palette.danger) } }
         }
-        .navigationTitle("Linux Users")
+        .dsListStyle().navigationTitle("Linux Users")
         .onAppear(perform: refresh)
         .sheet(item: $passwordFor) { target in SetPasswordSheet(name: target.name) }
         .confirmationDialog("Create \(username) in the active Linux environment?", isPresented: $confirmCreate, titleVisibility: .visible) {
@@ -787,7 +787,7 @@ struct ManagerView: View {
             }
         }
         .listStyle(.insetGrouped).dsListStyle()
-        .navigationTitle(environment.name).navigationBarTitleDisplayMode(.inline)
+        .dsListStyle().navigationTitle(environment.name).navigationBarTitleDisplayMode(.inline)
     }
     private func detailRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) { Text(title).foregroundColor(.secondary); Spacer(); Text(value).multilineTextAlignment(.trailing).textSelection(.enabled) }.font(.callout)
@@ -858,7 +858,7 @@ struct CreateEnvironmentView: View {
                 TextField("Environment name", text: $name)
                 Text("Alpine 3.24.2 ARM64 from the verified bundled image. Debian and Ubuntu support is planned.")
                 Button("Create Environment") { create(name.trimmingCharacters(in: .whitespacesAndNewlines)); dismiss() }
-            }.navigationTitle("New Environment").toolbar { Button("Cancel") { dismiss() } }
+            }.dsListStyle().navigationTitle("New Environment").toolbar { Button("Cancel") { dismiss() } }
         }.navigationViewStyle(.stack)
     }
 }
@@ -911,8 +911,8 @@ struct LauncherEditor: View {
                     try app.validate(); save(app); dismiss()
                 } catch { self.error = error.localizedDescription }
             }
-            if let error { Text(error).foregroundColor(.red) }
-        }.navigationTitle("Create Launcher")
+            if let error { Text(error).foregroundColor(DS.Palette.danger) }
+        }.dsListStyle().navigationTitle("Create Launcher")
     }
 }
 
@@ -920,7 +920,7 @@ struct LauncherEditor: View {
 /// test evidence only (docs/reports); nothing here is advertised beyond what was tested.
 struct CatalogApplication: Identifiable {
     enum Evidence: String { case verified = "Verified on Mac", partial = "Partial", experimental = "Experimental", untested = "Untested"
-        var color: Color { switch self { case .verified: return .green; case .partial: return .orange; case .experimental: return .blue; case .untested: return .secondary } } }
+        var color: Color { switch self { case .verified: return DS.Palette.success; case .partial: return DS.Palette.warning; case .experimental: return DS.Palette.info; case .untested: return .secondary } } }
     let package: String, name: String, executable: String, category: String, summary: String, evidence: Evidence, note: String
     var id: String { package }
     static let debian: [CatalogApplication] = [
@@ -1047,8 +1047,8 @@ struct PackageView: View {
                     do { share = ExportItem(url: try LRRuntimeBridge.exportFullDiagnosticBundle()) } catch { self.error = error.localizedDescription }
                 }
             }
-            if let error { Text(error).foregroundColor(.red) }
-        }.navigationTitle("Linux App Manager")
+            if let error { Text(error).foregroundColor(DS.Palette.danger) }
+        }.dsListStyle().navigationTitle("Linux App Manager")
         .onAppear { resultsVisible = true; readResults(); loadApplications() }.onReceive(timer) { _ in readResults() }
         .onDisappear { resultsVisible = false; resultReadID = nil }
         .onChange(of: environment.rootfsName) { _ in
@@ -1143,7 +1143,7 @@ private struct FileSharingView: View {
                 NavigationLink("Add or Manage Shared Folders", destination: SharedFoldersView())
                 Text("External locations require your Files selection. Manage access and check availability here; removing a link keeps its files.").font(.caption).foregroundColor(.secondary)
             }
-        }.navigationTitle("File Sharing")
+        }.dsListStyle().navigationTitle("File Sharing")
     }
 }
 private struct DesktopFileSharingDestination: View {
@@ -1240,7 +1240,7 @@ struct ExchangeFilesView: View {
                     Text("Transferred \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))").font(.caption)
                     Button("Cancel Transfer", role: .cancel) { operation.cancel() }
                 }
-                if let failure { Text(failure).font(.footnote).foregroundColor(.orange).textSelection(.enabled) }
+                if let failure { Text(failure).font(.footnote).foregroundColor(DS.Palette.warning).textSelection(.enabled) }
             }
             Section("Files") {
                 ForEach(entries) { entry in
@@ -1261,7 +1261,7 @@ struct ExchangeFilesView: View {
                 Section("Existing Files") { NavigationLink("Previous Downloads Exchange", destination: LegacyExchangeFilesView(environment: environment, manager: manager, share: $share)) }
             }
             Section { Text("Transfers stream data up to 512 MiB. Existing names are preserved. Exporting a directory creates a ZIP; links and special files are refused. Save changes before exporting a file that another app is editing.").font(.caption).foregroundColor(.secondary) }
-        }.navigationTitle(relative.isEmpty ? "Shared Files" : (relative as NSString).lastPathComponent)
+        }.dsListStyle().navigationTitle(relative.isEmpty ? "Shared Files" : (relative as NSString).lastPathComponent)
             .onAppear(perform: refresh).toolbar { Button("Refresh", action: refresh) }
             .onReceive(tick) { _ in if let operation { progress = operation.snapshot() as? [String: NSNumber] ?? [:] } }
             .fileImporter(isPresented: $importer, allowedContentTypes: [.data], onCompletion: imported)
@@ -1317,7 +1317,7 @@ private struct LegacyExchangeFilesView: View {
                 }
                 if leaves.isEmpty { Text("No files in the shared folder.").foregroundColor(.secondary) }
             }
-        }.navigationTitle("Files")
+        }.dsListStyle().navigationTitle("Files")
          .onAppear(perform: refresh)
          .toolbar { Button("Refresh", action: refresh) }
          .fileImporter(isPresented: $importer, allowedContentTypes: [.data]) { result in
@@ -1368,7 +1368,7 @@ struct DiagnosticsView: View {
                     }
                     ForEach(Array(manager.logs.enumerated()), id: \.offset) { _, line in Text(line).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
                 }
-            }.navigationTitle("Diagnostics").toolbar { Button("Done") { dismiss() } }
+            }.dsListStyle().navigationTitle("Diagnostics").toolbar { Button("Done") { dismiss() } }
         }.navigationViewStyle(.stack)
     }
 }
@@ -1425,9 +1425,9 @@ struct DeveloperDiagnosticsView: View {
                         }
                     }
                     Text("Export includes redacted diagnostic records and recent display logs. Browser profiles, cookies, keys, input payloads and arbitrary application output are excluded.").font(.caption)
-                    if let failure { Text(failure).foregroundColor(.red) }
+                    if let failure { Text(failure).foregroundColor(DS.Palette.danger) }
                 }
-            }.navigationTitle("Developer Diagnostics").toolbar { Button("Done") { dismiss() } }
+            }.dsListStyle().navigationTitle("Developer Diagnostics").toolbar { Button("Done") { dismiss() } }
         }.navigationViewStyle(.stack).onAppear(perform: refresh).onReceive(tick) { _ in refresh() }.sheet(item: $share) { ShareView(item: $0) }
     }
     private func refresh() { entries = LRRuntimeBridge.diagnosticEntries().compactMap { $0 as? [String: Any] }; health = LRRuntimeBridge.healthSummary() as? [String: Any] ?? [:] }
@@ -1445,7 +1445,7 @@ struct StorageManagementView: View {
                 Button("Clean Temporary Files") { cleaning = true }
                 Text("Removes only LinuxRunner's inactive installation staging files. User files, environments, packages and browser profiles are preserved.").font(.caption)
             }
-        }.navigationTitle("Storage").onAppear(perform: measure)
+        }.dsListStyle().navigationTitle("Storage").onAppear(perform: measure)
         .confirmationDialog("Remove inactive temporary installation files?", isPresented: $cleaning) { Button("Clean Temporary Files") {
             let staging = LRRuntimeBridge.managedStorageURL().appendingPathComponent("installer-temporary")
             // Installer creates this namespace exclusively; no rootfs/exchange paths.
@@ -1511,7 +1511,7 @@ struct ExecutionEngineView: View {
                     Section {
                         Button("Attach with StikDebug") { requestAttachment() }
                         Button("Activate JIT Now") { activate() }
-                        if let message { Text(message).font(.footnote).foregroundColor(.orange) }
+                        if let message { Text(message).font(.footnote).foregroundColor(DS.Palette.warning) }
                     } footer: {
                         Text(LRRuntimeBridge.requiresPreparedJITRegion()
                              ? "iOS 26 and later: StikDebug attaches with its universal script; return here and LinuxRunner prepares its code region while it is attached. Support on iOS 26 has not been verified on a device yet."
@@ -1521,7 +1521,7 @@ struct ExecutionEngineView: View {
             } else {
                 Section { Text("This build is interpreter-only. The JIT-capable LinuxRunner build adds the JIT option here; the interpreter remains the default there too.").font(.footnote) }
             }
-        }.navigationTitle("Execution Engine")
+        }.dsListStyle().navigationTitle("Execution Engine")
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             if requested { requested = false; activate() } else { refresh() }
         }
@@ -1538,8 +1538,8 @@ struct ExecutionEngineView: View {
     }
     private var jitStateColor: Color {
         switch report["state"] as? String {
-        case "JIT Active": return .green
-        case "JIT Failed", "JIT Unavailable": return .orange
+        case "JIT Active": return DS.Palette.success
+        case "JIT Failed", "JIT Unavailable": return DS.Palette.warning
         default: return .secondary
         }
     }
@@ -1572,7 +1572,7 @@ struct ExecutionEngineView: View {
 private struct LabeledRow: View {
     let label: String, value: String
     init(_ label: String, _ value: String) { self.label = label; self.value = value }
-    var body: some View { HStack { Text(label).foregroundColor(.secondary); Spacer(); Text(value).multilineTextAlignment(.trailing) }.font(.footnote) }
+    var body: some View { HStack(alignment: .firstTextBaseline) { Text(label).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary); Spacer(); Text(value).font(DS.Font.mono).foregroundColor(DS.Palette.textPrimary).multilineTextAlignment(.trailing) } }
 }
 
 private struct ApplicationGridView: View {
@@ -1645,7 +1645,7 @@ private struct ApplicationGridView: View {
                                     }
                                     Text(app.name).font(.headline).foregroundColor(.primary).lineLimit(2)
                                     Text(app.genericName ?? "Linux application").font(.caption).foregroundColor(.secondary).lineLimit(1)
-                                    if favorites.contains(app.launchKey) { Image(systemName: "star.fill").font(.caption).foregroundColor(.yellow) }
+                                    if favorites.contains(app.launchKey) { Image(systemName: "star.fill").font(.caption).foregroundColor(DS.Palette.accent) }
                                 }.frame(maxWidth: .infinity, minHeight: 142).padding(12)
                                     .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
                             }.buttonStyle(.plain).accessibilityIdentifier("launch-" + app.name)
@@ -1664,7 +1664,7 @@ private struct ApplicationGridView: View {
                 }
             }.padding()
         }.background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Applications").searchable(text: $search, prompt: "Search installed applications")
+            .dsListStyle().navigationTitle("Applications").searchable(text: $search, prompt: "Search installed applications")
             .onAppear { loadPreferences(); manager.refresh() }
             .onChange(of: selectedRoot) { _ in category = "All"; loadPreferences(); manager.refresh() }
     }
@@ -1760,7 +1760,7 @@ private struct DesktopControlSettings: View {
                     Text(value("statusDetail")).font(.caption).textSelection(.enabled)
                     Text("Changing the viewer does not replace X11 or create another Linux session. No GPU utilization or wireless performance is inferred from connection state.").font(.caption).foregroundColor(.secondary)
                 }
-            }.navigationTitle("Desktop Settings").toolbar { Button("Done") { dismiss() } }
+            }.dsListStyle().navigationTitle("Desktop Settings").toolbar { Button("Done") { dismiss() } }
         }.navigationViewStyle(.stack).onAppear(perform: refresh).onReceive(tick) { _ in refresh() }
             .alert("\(pending == "restart" ? "Restart" : "Stop") Desktop?", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } })) {
                 Button("Cancel", role: .cancel) { pending = nil }
@@ -1772,7 +1772,7 @@ private struct LabeledContentRow: View {
     let title: String
     let value: String
     init(_ title: String, value: String) { self.title = title; self.value = value }
-    var body: some View { HStack(alignment: .firstTextBaseline) { Text(title); Spacer(); Text(value).foregroundColor(.secondary).multilineTextAlignment(.trailing).textSelection(.enabled) } }
+    var body: some View { HStack(alignment: .firstTextBaseline) { Text(title).foregroundColor(DS.Palette.textPrimary); Spacer(); Text(value).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).multilineTextAlignment(.trailing).textSelection(.enabled) } }
 }
 private struct DesktopLogsContent: View {
     @State private var entries: [[String: Any]] = []
@@ -1826,9 +1826,9 @@ private struct DesktopLogsContent: View {
                         catch { await MainActor.run { failure = error.localizedDescription } }
                     }
                 }
-                if let failure { Text(failure).foregroundColor(.orange) }
+                if let failure { Text(failure).foregroundColor(DS.Palette.warning) }
             }
-        }.navigationTitle("Desktop Logs").searchable(text: $search, prompt: "Search diagnostic messages")
+        }.dsListStyle().navigationTitle("Desktop Logs").searchable(text: $search, prompt: "Search diagnostic messages")
             .toolbar { Button("Refresh", action: refresh) }.onAppear(perform: refresh)
             .sheet(item: $share) { ShareView(item: $0) }
     }
@@ -1858,7 +1858,7 @@ private struct DesktopPreferencesView: View {
             Text("Applies when reopening the viewer. Presents received display updates through Metal, with Core Graphics fallback. Enabled by default for SteamOS on iPad when the Linux Metal GPU is active. The Linux GPU and execution engine are selected separately in Settings › Graphics.").font(.caption)
         }
         Section("Execution") { Text("ARM64 interpreter; JIT is not required. The renderer for Linux applications is chosen in Settings › Graphics.").font(.caption) }
-    }.navigationTitle("Display & Gestures").onAppear { resolution = LRRuntimeBridge.desktopResolutionIndex(); metalPresentation = LRRuntimeBridge.desktopMetalPresentationEnabled() }.onChange(of: resolution) { UserDefaults.standard.set($0, forKey: key) }.onChange(of: metalPresentation) { UserDefaults.standard.set($0, forKey: "LinuxRunnerDesktop.metalPresentation") } }
+    }.dsListStyle().navigationTitle("Display & Gestures").onAppear { resolution = LRRuntimeBridge.desktopResolutionIndex(); metalPresentation = LRRuntimeBridge.desktopMetalPresentationEnabled() }.onChange(of: resolution) { UserDefaults.standard.set($0, forKey: key) }.onChange(of: metalPresentation) { UserDefaults.standard.set($0, forKey: "LinuxRunnerDesktop.metalPresentation") } }
 }
 /// Graphics renderer for Linux applications, plus live evidence of what actually ran on the GPU.
 // Folders the user picks in Files (iPhone, iCloud Drive, other providers or an
@@ -1932,7 +1932,7 @@ private struct NetworkDiagnosticsView: View {
                 Text("Linux TCP and UDP sockets use host sockets. Linux interface queries expose a read-only compatibility view. Host routing and local-network permission remain controlled by iOS.")
                 Text("Nearby Wi-Fi scanning and raw interface control are unavailable through ordinary public iOS APIs. This screen does not request location access or a Wi-Fi entitlement.")
             } header: { Text("Capabilities") }
-        }.navigationTitle("Network").onAppear { network.start() }.onDisappear { network.stop() }
+        }.dsListStyle().navigationTitle("Network").onAppear { network.start() }.onDisappear { network.stop() }
     }
 }
 
@@ -1983,7 +1983,7 @@ private struct DevicesView: View {
             } header: { Text("External Monitor · USB-C or AirPlay") }
             Section {} footer: { Text("Linux cannot directly control raw USB devices. A network adapter recognized by iOS can carry LinuxRunner’s host-socket traffic; it does not become a guest-owned USB device. Devices iOS supports use the public interfaces listed above.") }
         }
-        .navigationTitle("Devices").onAppear(perform: refresh).onReceive(timer) { _ in refresh() }
+        .dsListStyle().navigationTitle("Devices").onAppear(perform: refresh).onReceive(timer) { _ in refresh() }
         .alert("Wireless Linux Desktop", isPresented: $wirelessHelp) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -2054,7 +2054,7 @@ private struct NoticesView: View {
                 Section { ForEach(components, id: \.0) { item in VStack(alignment: .leading, spacing: 4) { Text(item.0).font(.headline); Text(item.1).font(.footnote).foregroundStyle(.secondary) } } }
                 ForEach(bundled, id: \.0) { item in Section(item.0) { Text(item.1).font(.caption.monospaced()).textSelection(.enabled) } }
             }
-            .navigationTitle("Notices & Credits")
+            .dsListStyle().navigationTitle("Notices & Credits")
             .toolbar { Button("Done") { dismiss() } }
         }.navigationViewStyle(.stack)
     }
@@ -2097,7 +2097,7 @@ private struct TerminalSettingsView: View {
                 Toggle("Hide Extra Keys with Hardware Keyboard", isOn: $hideExtraKeys).onChange(of: hideExtraKeys) { prefs.hideExtraKeysWithExternalKeyboard = $0 }
             } header: { Text("Keyboard") } footer: { Text("The terminal's key bar provides Esc, Tab, Ctrl, Alt and arrow keys on screen. Changes apply to open terminals.") }
         }
-        .navigationTitle("Terminal & Keyboard")
+        .dsListStyle().navigationTitle("Terminal & Keyboard")
         .onAppear {
             fontSize = prefs.fontSize.doubleValue; cursor = prefs.cursorStyle.rawValue; blink = prefs.blinkCursor; scheme = prefs.colorScheme.rawValue
             capsLock = prefs.capsLockMapping.rawValue; optionEscape = prefs.optionMapping == OptionMapEsc; backtickEscape = prefs.backtickMapEscape
@@ -2122,11 +2122,11 @@ private struct AudioSettingsView: View {
                     valueRow("Dropped to keep latency low", value: String(format: "%.1f s", Double(audio["dropped_ms"] as? Int ?? 0) / 1000))
                     valueRow("Underruns", value: "\(audio["underruns"] as? Int ?? 0)")
                 }
-                if let error = audio["last_error"] as? String, !error.isEmpty { Text(error).font(.footnote).foregroundStyle(.orange) }
+                if let error = audio["last_error"] as? String, !error.isEmpty { Text(error).font(.footnote).foregroundStyle(DS.Palette.warning) }
             }
             Section("Microphone") { Text("Not available yet: Linux programs cannot record from the iPhone microphone in this version.").font(.footnote).foregroundStyle(.secondary) }
         }
-        .navigationTitle("Audio")
+        .dsListStyle().navigationTitle("Audio")
         .onAppear(perform: refresh).onReceive(timer) { _ in refresh() }
     }
     private func valueRow(_ title: String, value: String) -> some View { HStack { Text(title); Spacer(); Text(value).foregroundStyle(.secondary).multilineTextAlignment(.trailing) } }
@@ -2150,9 +2150,9 @@ private struct SharedFoldersView: View {
                 if folders.isEmpty { Text("No folders shared yet.").foregroundStyle(.secondary) }
                 ForEach(folders, id: \.self) { folder in
                     VStack(alignment: .leading, spacing: 3) {
-                        HStack { Image(systemName: folder["available"] == "yes" ? "folder.fill" : "exclamationmark.triangle.fill").foregroundStyle(folder["available"] == "yes" ? Color.accentColor : Color.orange); Text(folder["displayName"] ?? folder["name"] ?? "") }
+                        HStack { Image(systemName: folder["available"] == "yes" ? "folder.fill" : "exclamationmark.triangle.fill").foregroundStyle(folder["available"] == "yes" ? DS.Palette.accent : DS.Palette.warning); Text(folder["displayName"] ?? folder["name"] ?? "") }
                         Text(folder["mountPoint"] ?? "").font(.caption.monospaced()).textSelection(.enabled)
-                        if folder["available"] != "yes" { Text("Unavailable: the folder was moved, its drive is disconnected, or access was revoked. Reconnect it, or remove and add it again.").font(.caption).foregroundStyle(.orange) }
+                        if folder["available"] != "yes" { Text("Unavailable: the folder was moved, its drive is disconnected, or access was revoked. Reconnect it, or remove and add it again.").font(.caption).foregroundStyle(DS.Palette.warning) }
                         if let result = checks[folder["name"] ?? ""] { Text(result).font(.caption.monospaced()).foregroundStyle(.secondary) }
                         Button(checking == folder["name"] ? "Checking…" : "Check Access") {
                             let name = folder["name"] ?? ""; checking = name
@@ -2163,7 +2163,7 @@ private struct SharedFoldersView: View {
             }
             if let message { Section { Text(message).font(.footnote) } }
         }
-        .navigationTitle("Shared Folders")
+        .dsListStyle().navigationTitle("Shared Folders")
         .onAppear { folders = LRRuntimeBridge.sharedFolders() }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             switch result {
@@ -2239,7 +2239,7 @@ private struct DesktopEnvironmentView: View {
                 Button(working == nil ? "Install KDE Plasma" : "Installing…") { install() }.disabled(working != nil || !LRRuntimeBridge.isRunning())
                 if let working { Text(working).font(.caption).foregroundColor(.secondary) }
             }
-            if let failure { Text(failure).font(.footnote).foregroundColor(.orange) }
+            if let failure { Text(failure).font(.footnote).foregroundColor(DS.Palette.warning) }
         } header: { Text("KDE Plasma") } footer: {
             Text(LRRuntimeBridge.activeEnvironmentIsFedora() ? "Installs KDE Plasma from official Fedora packages. Experimental; uses more memory than the lightweight desktop, which remains available as a fallback. Select a regular Linux user before starting." : LRRuntimeBridge.activeEnvironmentIsArch() ? "Installs official Arch Linux ARM packages and builds the local Plasma display bridge. Experimental; physical-device validation is still required. The LinuxRunner Desktop remains available as the fallback." : "About 550 official Debian packages (about 240 MB download, 930 MB installed); network needed once. The LinuxRunner Desktop stays installed as the fallback.")
         }
@@ -2286,7 +2286,7 @@ private struct DesktopEnvironmentView: View {
         } header: { Text("Hyprland · Experimental") } footer: {
             Text("Uses the active virtual GPU when available. Software rendering keeps effects off. Network needed once. The LinuxRunner Desktop stays installed as the fallback.")
         }
-    }.navigationTitle("Desktop Environment").onAppear { installed = LRRuntimeBridge.plasmaInstalled(); lxqtInstalled = LRRuntimeBridge.lxqtInstalled(); enlightenmentInstalled = LRRuntimeBridge.enlightenmentInstalled(); wayfireInstalled = LRRuntimeBridge.wayfireInstalled(); hyprlandInstalled = LRRuntimeBridge.hyprlandInstalled() } }
+    }.dsListStyle().navigationTitle("Desktop Environment").onAppear { installed = LRRuntimeBridge.plasmaInstalled(); lxqtInstalled = LRRuntimeBridge.lxqtInstalled(); enlightenmentInstalled = LRRuntimeBridge.enlightenmentInstalled(); wayfireInstalled = LRRuntimeBridge.wayfireInstalled(); hyprlandInstalled = LRRuntimeBridge.hyprlandInstalled() } }
     private func installHyprland() {
         failure = nil; hyprlandWorking = "Starting"
         LRRuntimeBridge.installHyprland({ hyprlandWorking = $0 }) { error in
@@ -2349,10 +2349,10 @@ private struct GraphicsSettingsView: View {
                     Text("Metal GPU · Experimental").tag("metal")
                     Text("Software Rendering").tag("software")
                 }.onChange(of: gpuMode) { LRRuntimeBridge.setGPUMode($0); gpu = LRRuntimeBridge.gpuStatus() as? [String: Any] ?? [:] }
-                HStack { Text("Active renderer"); Spacer(); Text(gpu["active"] as? String ?? "Software").foregroundColor((gpu["device"] as? Bool ?? false) ? .green : .secondary) }
+                HStack { Text("Active renderer"); Spacer(); Text(gpu["active"] as? String ?? "Software").foregroundColor((gpu["device"] as? Bool ?? false) ? DS.Palette.success : .secondary) }
                 Text(gpu["detail"] as? String ?? "").font(.caption).foregroundColor(.secondary)
                 if (gpu["restartNeeded"] as? Bool ?? false) || (gpuMode != "metal" && (gpu["device"] as? Bool ?? false)) {
-                    Text("Takes effect after LinuxRunner restarts.").font(.caption).foregroundColor(.orange)
+                    Text("Takes effect after LinuxRunner restarts.").font(.caption).foregroundColor(DS.Palette.warning)
                 }
             } header: { Text("Linux GPU Device") } footer: {
                 Text("Metal GPU gives Linux a virtual GPU through Mesa's virgl driver and ANGLE/Metal. Hyprland and the managed Plasma sessions on Arch and Fedora can use it for compositing; prepared SteamOS uses it for Xorg and Qt rendering (KWin effects off); applications choose their rendering path separately. Automatic starts it with Linux; if it does not start (or a previous start did not finish), LinuxRunner uses software and shows why.")
@@ -2370,7 +2370,7 @@ private struct GraphicsSettingsView: View {
                 Text("Metal draws are guest OpenGL draws executed by the GPU. Mesa draws were rasterised in software. Presenting the desktop through Metal is not counted as acceleration.")
             }
         }
-    }.navigationTitle("Graphics").onAppear { summary = LRRuntimeBridge.graphicsSummary() }.onReceive(refresh) { _ in summary = LRRuntimeBridge.graphicsSummary() } }
+    }.dsListStyle().navigationTitle("Graphics").onAppear { summary = LRRuntimeBridge.graphicsSummary() }.onReceive(refresh) { _ in summary = LRRuntimeBridge.graphicsSummary() } }
     private var description: String {
         switch mode {
         case "mesa-metal-resident": return "Supported OpenGL draws run on the iPhone GPU through Metal, with images kept on the GPU between draws. Unsupported operations fall back to software Mesa. Tested on Mac with Blender; device results are still being collected."
@@ -2395,7 +2395,7 @@ private struct ProcessGraphicsRow: View {
         let age = Date().timeIntervalSince1970 - number("updated_unix")
         VStack(alignment: .leading, spacing: 4) {
             HStack { Text(values["command"] ?? "process").font(.headline); Spacer(); Text(age < 5 ? String(format: "%.1f fps", number("fps")) : "idle").foregroundColor(.secondary) }
-            ProgressView(value: total > 0 ? metal / total : 0).tint(.green)
+            ProgressView(value: total > 0 ? metal / total : 0).tint(DS.Palette.success)
             Text(String(format: "GPU %@ draws · software %@ (%.0f%% on Metal)", format(metal), format(mesa), total > 0 ? 100 * metal / total : 0)).font(.caption)
             Text(String(format: "Transfers: %@ uploads (%.1f MB), %@ readbacks (%.1f MB) · GPU %.0f ms", format(number("uploads")), number("upload_bytes") / 1_048_576, format(number("writebacks")), number("writeback_bytes") / 1_048_576, number("gpu_ms"))).font(.caption).foregroundColor(.secondary)
             Text("Shaders: \(values["program_compiles"] ?? "0") compiled, \(values["program_cache_hits"] ?? "0") cache hits").font(.caption).foregroundColor(.secondary)
@@ -2414,7 +2414,7 @@ private struct LinuxRunnerAboutView: View {
             Text("Linux userspace → ARM64 interpreter → Linux ABI compatibility → iOS/XNU").font(.caption)
         }
         Section { Button("Third-Party Notices & Credits") { notices = true }; Text("LinuxRunner includes open-source components. Their licenses and attribution remain available; no kernel or virtual machine is booted.").font(.caption).foregroundColor(.secondary) }
-    }.navigationTitle("About").sheet(isPresented: $notices) { NoticesView() } }
+    }.dsListStyle().navigationTitle("About").sheet(isPresented: $notices) { NoticesView() } }
 }
 
 struct GuestCrashListView: View {
@@ -2432,7 +2432,7 @@ struct GuestCrashListView: View {
                 }
             }
             Section { Text(GuestCrashCenter.storageStatus()).font(.footnote).foregroundColor(.secondary); Text("Keeps the latest 20 failures across restarts. Handled guest signals are not crashes. Nonzero exits are labeled separately. Reports omit arbitrary application output and webpage contents.").font(.footnote).foregroundColor(.secondary) }
-        }.navigationTitle("Application Crashes")
+        }.dsListStyle().navigationTitle("Application Crashes")
             .onAppear { reports = GuestCrashCenter.reports() }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LRGuestCrashRecorded"))) { _ in reports = GuestCrashCenter.reports() }
     }
@@ -2450,10 +2450,10 @@ struct GuestCrashDetailView: View {
                 Button("Copy Error") { UIPasteboard.general.string = report.summary }
                 Button("Copy Full Report") { UIPasteboard.general.string = report.fullText }
                 Button("Share Report") { do { share = ExportItem(url: try GuestCrashCenter.export(report)) } catch { self.error = error.localizedDescription } }
-                if let error = error { Text(error).foregroundColor(.red) }
+                if let error = error { Text(error).foregroundColor(DS.Palette.danger) }
             }
             Section("Full Report") { Text(report.fullText).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
-        }.navigationTitle("Crash Details")
+        }.dsListStyle().navigationTitle("Crash Details")
             .toolbar { if dismissible { Button("Done") { dismiss() } } }
             .sheet(item: $share) { ShareView(item: $0) }
     }
@@ -2977,19 +2977,18 @@ struct InstallProgressCard: View {
 // time). Memory: private anonymous guest pages per process (shared mappings
 // are listed separately because every process mapping them would count them),
 // plus the whole app's footprint as iOS accounts it. No value is estimated.
-// The app's own dark style: black background, iOS dark grouped cards, white
-// text and the app accent blue.
+/// Task Manager colours: the design-system tokens, so it follows Appearance.
 private enum TaskStyle {
-    static let base = Color.black
-    static let panel = Color(red: 0x1c / 255, green: 0x1c / 255, blue: 0x1e / 255)
-    static let line = Color(red: 0x2c / 255, green: 0x2c / 255, blue: 0x2e / 255)
-    static let text = Color.white
-    static let dim = Color(red: 0x8e / 255, green: 0x8e / 255, blue: 0x93 / 255)
-    static let frost = Color(red: 0.36, green: 0.68, blue: 0.98)
-    static let blue = Color(red: 0.12, green: 0.30, blue: 0.52)
-    static let green = Color(red: 0x30 / 255, green: 0xd1 / 255, blue: 0x58 / 255)
-    static let yellow = Color(red: 0xff / 255, green: 0xd6 / 255, blue: 0x0a / 255)
-    static let red = Color(red: 0xff / 255, green: 0x45 / 255, blue: 0x3a / 255)
+    static let base = DS.Palette.background
+    static let panel = DS.Palette.surface
+    static let line = DS.Palette.border
+    static let text = DS.Palette.textPrimary
+    static let dim = DS.Palette.textSecondary
+    static let frost = DS.Palette.accent
+    static let blue = DS.Palette.info
+    static let green = DS.Palette.success
+    static let yellow = DS.Palette.warning
+    static let red = DS.Palette.danger
 }
 
 private struct GuestProcess: Identifiable {
@@ -3076,7 +3075,7 @@ struct TaskManagerView: View {
                     }
                 }.padding(.top, 8)
             }
-            .navigationTitle("Task Manager").navigationBarTitleDisplayMode(.inline)
+            .dsListStyle().navigationTitle("Task Manager").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         .navigationViewStyle(.stack)
@@ -3174,7 +3173,7 @@ struct TaskManagerView: View {
 private struct DetailRow: View {   // LabeledContent needs iOS 16
     let label: String, value: String
     init(_ label: String, value: String) { self.label = label; self.value = value }
-    var body: some View { HStack { Text(label); Spacer(); Text(value).foregroundColor(.secondary) } }
+    var body: some View { HStack(alignment: .firstTextBaseline) { Text(label).foregroundColor(DS.Palette.textPrimary); Spacer(); Text(value).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary) } }
 }
 
 private struct ProcessDetailView: View {
@@ -3204,7 +3203,7 @@ private struct ProcessDetailView: View {
                     if let result { Text(result).font(.caption).foregroundColor(.secondary) }
                 } footer: { Text(process.id <= 1 ? "PID 1 runs the Linux session and cannot be ended here." : "Ending a desktop component (window manager, panel, compositor) can close the desktop session.") }
             }
-            .navigationTitle(process.name).navigationBarTitleDisplayMode(.inline)
+            .dsListStyle().navigationTitle(process.name).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .confirmationDialog(confirm == true ? "Force kill \(process.name)?" : "End \(process.name)?", isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }), titleVisibility: .visible) {
                 Button(confirm == true ? "Force Kill" : "End Process", role: .destructive) {
