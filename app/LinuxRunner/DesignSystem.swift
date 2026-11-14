@@ -94,7 +94,12 @@ enum DS {
         static let detail = SwiftUI.Font.subheadline
         static let caption = SwiftUI.Font.footnote
         static let overline = SwiftUI.Font.caption.weight(.semibold)
-        /// Technical data: versions, sizes, paths, durations.
+        /// Quiet uppercase label above a group of cards.
+        static let sectionLabel = SwiftUI.Font.footnote.weight(.semibold)
+        /// Numbers inside interface text (versions, sizes, counts): tabular digits, interface face.
+        static let data = SwiftUI.Font.footnote.monospacedDigit()
+        static let dataSmall = SwiftUI.Font.caption.monospacedDigit()
+        /// Code-like data only: package names, paths, durations, key/value values.
         static let mono = SwiftUI.Font.system(.footnote, design: .monospaced)
         static let monoSmall = SwiftUI.Font.system(.caption, design: .monospaced)
     }
@@ -181,10 +186,12 @@ struct DSSectionHeader<Trailing: View>: View {
     init(_ title: String, @ViewBuilder trailing: () -> Trailing) { self.title = title; self.trailing = trailing() }
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(DS.Font.sectionTitle).foregroundColor(DS.Palette.textPrimary).accessibilityAddTraits(.isHeader)
+            Text(title.uppercased()).font(DS.Font.sectionLabel).tracking(0.6).foregroundColor(DS.Palette.textSecondary)
+                .accessibilityLabel(title).accessibilityAddTraits(.isHeader)
             Spacer()
             trailing
         }
+        .padding(.horizontal, DS.Space.xxs)
     }
 }
 extension DSSectionHeader where Trailing == EmptyView {
@@ -262,6 +269,8 @@ struct DSRowLabel: View {
 struct DSTextField: View {
     let title: String
     @Binding var text: String
+    /// Example or hint shown inside the empty field; the title stays above it.
+    var prompt: String?
     var secure = false
     var contentType: UITextContentType?
     @FocusState private var focused: Bool
@@ -269,8 +278,9 @@ struct DSTextField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(DS.Font.overline).foregroundColor(DS.Palette.textSecondary).accessibilityHidden(true)
             Group {
-                if secure { SecureField(title, text: $text) } else { TextField(title, text: $text) }
+                if secure { SecureField(prompt ?? "", text: $text) } else { TextField(prompt ?? "", text: $text) }
             }
+            .accessibilityLabel(title)
             .textContentType(contentType)
             .focused($focused)
             .font(DS.Font.body)
@@ -354,6 +364,7 @@ struct DSButtonStyle: ButtonStyle {
         private var height: CGFloat { size == .large ? 52 : size == .regular ? 44 : 34 }
         private var font: Font { size == .small ? .subheadline.weight(.semibold) : .body.weight(.semibold) }
         private var foreground: Color {
+            if !enabled && kind == .primary { return DS.Palette.textTertiary }
             switch kind {
             case .primary: return DS.Palette.onAccent
             case .secondary: return DS.Palette.textPrimary
@@ -362,6 +373,7 @@ struct DSButtonStyle: ButtonStyle {
             }
         }
         private var fill: Color {
+            if !enabled && kind == .primary { return DS.Palette.surfaceRaised }
             switch kind {
             case .primary: return DS.Palette.accent
             case .secondary: return DS.Palette.surfaceRaised
@@ -378,7 +390,7 @@ struct DSButtonStyle: ButtonStyle {
                 .frame(maxWidth: fullWidth ? .infinity : nil)
                 .background(RoundedRectangle.ds(DS.Radius.md).fill(fill))
                 .overlay(RoundedRectangle.ds(DS.Radius.md).stroke(kind == .secondary ? DS.Palette.border : .clear, lineWidth: 1))
-                .opacity(enabled ? (configuration.isPressed ? 0.82 : 1) : 0.4)
+                .opacity(enabled ? (configuration.isPressed ? 0.82 : 1) : (kind == .primary ? 1 : 0.4))
                 .scaleEffect(configuration.isPressed ? 0.98 : 1)
                 .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
                 .contentShape(RoundedRectangle.ds(DS.Radius.md))

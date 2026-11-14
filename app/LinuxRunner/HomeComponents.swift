@@ -30,6 +30,8 @@ struct HomeStatus: View {
             .padding(.horizontal, DS.Space.sm).frame(minHeight: 32)
             .background(Capsule().fill(DS.Palette.surface))
             .overlay(Capsule().stroke(DS.Palette.border, lineWidth: 1))
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
         }
         .disabled(open == nil && stop == nil)
         .accessibilityLabel("Desktop status: \(title)")
@@ -87,7 +89,7 @@ struct HomeScreen<Tasks: View>: View {
                     }
                 }
                 tasks()
-                if let status = model.runtimeStatus {
+                if let status = model.runtimeStatus, model.hasEnvironment {
                     Text(status).font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary)
                 }
             }
@@ -103,7 +105,7 @@ struct HomeScreen<Tasks: View>: View {
             DistroBadge(distributionID: model.distributionID, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.environmentName ?? "No Linux installed").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary).lineLimit(1)
-                Text(model.environmentDetail ?? "Choose a distribution").font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
+                Text(model.environmentDetail ?? "Choose a distribution").font(DS.Font.data).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
             }
             Spacer(minLength: DS.Space.xs)
             if model.hasEnvironment { HomeStatus(phase: model.phase, open: model.running ? primary : nil, stop: stop) }
@@ -127,41 +129,70 @@ struct HomeScreen<Tasks: View>: View {
         }
     }
 
+    /// Preview and action. iPhone: preview above the action bar. iPad (regular
+    /// width): side by side, so the preview does not push everything below the fold.
     private var hero: some View {
-        VStack(spacing: 0) {
-            DesktopPreviewCard(phase: model.phase, stateText: model.stateText, open: primary)
-            HStack(spacing: DS.Space.sm) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Desktop").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
-                    Text(heroSubtitle).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
-                }
-                Spacer(minLength: DS.Space.xs)
-                if !model.hasEnvironment {
-                    Button(action: addDistribution) {
-                        HStack(spacing: DS.Space.xs) { Image(systemName: "plus").font(.subheadline.weight(.bold)); Text("Add Distribution").lineLimit(1) }.fixedSize()
+        Group {
+            if sizeClass == .regular {
+                HStack(spacing: 0) {
+                    DesktopPreviewCard(phase: model.phase, stateText: model.stateText, open: model.hasEnvironment ? primary : addDistribution,
+                                       emptyMessage: model.hasEnvironment ? nil : "No distribution installed")
+                        .frame(maxWidth: .infinity)
+                    VStack(alignment: .leading, spacing: DS.Space.md) {
+                        heroText
+                        Spacer(minLength: 0)
+                        primaryButton
                     }
-                    .buttonStyle(DSButtonStyle(.primary))
-                    .accessibilityIdentifier("Add Distribution")
-                } else {
-                Button(action: primary) {
-                    HStack(spacing: DS.Space.xs) {
-                        if model.starting { ProgressView().tint(DS.Palette.onAccent) }
-                        else { Image(systemName: model.running ? "play.fill" : "power").font(.subheadline.weight(.bold)) }
-                        Text(primaryTitle).lineLimit(1)
-                    }
-                    .fixedSize()
+                    .padding(DS.Space.lg)
+                    .frame(width: 280, alignment: .leading)
+                    .frame(maxHeight: .infinity)
                 }
-                .buttonStyle(DSButtonStyle(.primary))
-                .disabled(model.running ? false : (model.starting || !model.canStart))
-                .accessibilityLabel(model.running ? (model.desktopAlive ? "Resume Desktop" : "Open Desktop") : "Start Linux")
-                .accessibilityIdentifier(model.running ? "Open Desktop" : "Start Linux Runtime")
+            } else {
+                VStack(spacing: 0) {
+                    DesktopPreviewCard(phase: model.phase, stateText: model.stateText, open: model.hasEnvironment ? primary : addDistribution,
+                                       emptyMessage: model.hasEnvironment ? nil : "No distribution installed")
+                    HStack(spacing: DS.Space.sm) {
+                        heroText
+                        Spacer(minLength: DS.Space.xs)
+                        primaryButton
+                    }
+                    .padding(DS.Space.md)
                 }
             }
-            .padding(DS.Space.md)
         }
         .background(RoundedRectangle.ds(DS.Radius.xl).fill(DS.Palette.surface))
         .clipShape(RoundedRectangle.ds(DS.Radius.xl))
         .overlay(RoundedRectangle.ds(DS.Radius.xl).stroke(DS.Palette.border, lineWidth: 1))
+    }
+
+    private var heroText: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Desktop").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
+            Text(heroSubtitle).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(sizeClass == .regular ? 3 : 1)
+        }
+    }
+
+    @ViewBuilder private var primaryButton: some View {
+        if !model.hasEnvironment {
+            Button(action: addDistribution) {
+                HStack(spacing: DS.Space.xs) { Image(systemName: "plus").font(.subheadline.weight(.bold)); Text("Add Distribution").lineLimit(1) }.fixedSize()
+            }
+            .buttonStyle(DSButtonStyle(.primary, fullWidth: sizeClass == .regular))
+            .accessibilityIdentifier("Add Distribution")
+        } else {
+            Button(action: primary) {
+                HStack(spacing: DS.Space.xs) {
+                    if model.starting { ProgressView().tint(DS.Palette.textTertiary) }
+                    else { Image(systemName: model.running ? "play.fill" : "power").font(.subheadline.weight(.bold)) }
+                    Text(primaryTitle).lineLimit(1)
+                }
+                .fixedSize()
+            }
+            .buttonStyle(DSButtonStyle(.primary, fullWidth: sizeClass == .regular))
+            .disabled(model.running ? false : (model.starting || !model.canStart))
+            .accessibilityLabel(model.running ? (model.desktopAlive ? "Resume Desktop" : "Open Desktop") : "Start Linux")
+            .accessibilityIdentifier(model.running ? "Open Desktop" : "Start Linux Runtime")
+        }
     }
 
     private var quickActions: some View {
@@ -217,7 +248,7 @@ struct ToolCard: View {
             DSIconTile(symbol: symbol, tone: tone, size: 32)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary).lineLimit(1).minimumScaleFactor(0.85)
-                Text(detail).font(DS.Font.monoSmall).foregroundColor(tone == .neutral ? DS.Palette.textSecondary : tone.color).lineLimit(1).minimumScaleFactor(0.85)
+                Text(detail).font(DS.Font.caption).foregroundColor(tone == .neutral ? DS.Palette.textSecondary : tone.color).lineLimit(1).minimumScaleFactor(0.85)
             }
             Spacer(minLength: 0)
         }
@@ -314,13 +345,13 @@ struct ActivityRow: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(item.title).font(DS.Font.label).foregroundColor(DS.Palette.textPrimary).lineLimit(1)
                         Spacer(minLength: DS.Space.xs)
-                        Text(elapsed(now: context.date)).font(DS.Font.monoSmall).foregroundColor(DS.Palette.textTertiary)
+                        Text(elapsed(now: context.date)).font(DS.Font.dataSmall).foregroundColor(DS.Palette.textTertiary)
                     }
                     Text(item.detail).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).lineLimit(2)
                     if let fraction = item.fraction, item.ended == nil {
                         ProgressView(value: fraction).tint(tone.color).padding(.top, 2)
                     }
-                    Text(item.stateText).font(DS.Font.overline).foregroundColor(tone.color)
+                    if item.state != .running { Text(item.stateText).font(DS.Font.overline).foregroundColor(tone.color) }
                 }
             }
             .padding(DS.Space.sm)
@@ -342,6 +373,8 @@ struct DesktopPreviewCard: View {
     let phase: HomeStatus.Phase
     let stateText: String
     var open: () -> Void
+    /// Replaces the stopped/off caption, e.g. when nothing is installed yet.
+    var emptyMessage: String?
     @State private var image: UIImage?
     @State private var generation: UInt64 = 0
     @State private var visible = false
@@ -394,9 +427,9 @@ struct DesktopPreviewCard: View {
         ZStack {
         Color.black.opacity(0.45)
         VStack(spacing: DS.Space.xs) {
-            Image(systemName: phase == .off ? "power" : "play.fill").font(.title3.weight(.semibold)).foregroundColor(.white.opacity(0.9))
+            Image(systemName: emptyMessage != nil ? "plus" : phase == .off ? "power" : "play.fill").font(.title3.weight(.semibold)).foregroundColor(.white.opacity(0.9))
                 .frame(width: 48, height: 48).background(Circle().fill(.black.opacity(0.55))).overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
-            Text(phase == .off ? "Linux is not running" : phase == .starting ? "Starting desktop…" : "Desktop stopped").font(DS.Font.label).foregroundColor(.white)
+            Text(emptyMessage ?? (phase == .off ? "Linux is not running" : phase == .starting ? "Starting desktop…" : "Desktop stopped")).font(DS.Font.label).foregroundColor(.white)
         }
         }
     }
@@ -512,7 +545,7 @@ struct InstalledDistributionCard: View {
             DistroBadge(distributionID: distributionID, size: 48)
             VStack(alignment: .leading, spacing: 5) {
                 Text(name).font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary).lineLimit(1)
-                Text([version, size].filter { !$0.isEmpty }.joined(separator: " · ")).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
+                Text([version, size].filter { !$0.isEmpty }.joined(separator: " · ")).font(DS.Font.data).foregroundColor(DS.Palette.textSecondary).lineLimit(1)
                 if active { DSBadge(text: "Running", tone: .success) }
                 else if nextLaunch { DSBadge(text: "Next launch", tone: .accent) }
                 if let desktop {
@@ -541,7 +574,7 @@ struct CatalogDistributionCard: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.name).font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
                 Text(item.summary).font(DS.Font.label).foregroundColor(DS.Palette.textSecondary)
-                Text(item.detail).font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                Text(item.detail).font(DS.Font.caption).foregroundColor(DS.Palette.textTertiary).lineLimit(2)
             }
             Spacer(minLength: 0)
             HStack(spacing: 5) {
@@ -584,7 +617,7 @@ struct DistributionsScreen: View {
             VStack(alignment: .leading, spacing: DS.Space.xxl) {
                 VStack(alignment: .leading, spacing: DS.Space.sm) {
                     DSSectionHeader("Installed") {
-                        if !installed.isEmpty { Text("\(installed.count)").font(DS.Font.mono).foregroundColor(DS.Palette.textTertiary) }
+                        if !installed.isEmpty { Text("\(installed.count)").font(DS.Font.dataSmall.weight(.semibold)).foregroundColor(DS.Palette.textTertiary) }
                     }
                     if installed.isEmpty {
                         DSEmptyState(symbol: "square.stack.3d.up", title: "No distribution yet", message: "Choose one below. Debian is the best start for desktop apps.")

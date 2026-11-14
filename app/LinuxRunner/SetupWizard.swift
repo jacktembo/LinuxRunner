@@ -319,11 +319,11 @@ struct SetupWizardView: View {
                 }
             }
             VStack(alignment: .leading, spacing: DS.Space.md) {
-                Text(existing.isEmpty ? "Create your account" : "Or create a new account").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
-                DSTextField(title: "Username", text: $username, contentType: .username)
+                if !existing.isEmpty { Text("Or create a new account").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary) }
+                DSTextField(title: "Username", text: $username, prompt: "e.g. alex", contentType: .username)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
-                DSTextField(title: "Password", text: $password, secure: true, contentType: .newPassword)
-                DSTextField(title: "Confirm password", text: $confirmation, secure: true, contentType: .newPassword)
+                DSTextField(title: "Password", text: $password, prompt: "Choose a password", secure: true, contentType: .newPassword)
+                DSTextField(title: "Confirm password", text: $confirmation, prompt: "Type it again", secure: true, contentType: .newPassword)
                 if !confirmation.isEmpty && password != confirmation {
                     Label("The passwords do not match.", systemImage: "exclamationmark.circle.fill").font(DS.Font.caption).foregroundColor(DS.Palette.warning)
                 }

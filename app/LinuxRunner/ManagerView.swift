@@ -635,7 +635,7 @@ struct ManagerView: View {
                     DSBrandMark(size: 56)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("LinuxRunner").font(DS.Font.sectionTitle).foregroundColor(DS.Palette.textPrimary)
-                        Text(appVersion).font(DS.Font.mono).foregroundColor(DS.Palette.textSecondary)
+                        Text(appVersion).font(DS.Font.data).foregroundColor(DS.Palette.textSecondary)
                         HStack(spacing: 6) {
                             Circle().fill(activeEnvironment == nil ? DS.Palette.textTertiary : DS.Palette.success).frame(width: 6, height: 6)
                             Text(activeEnvironment.map { "\($0.name) · ARM64" } ?? "No Linux running").font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary)
