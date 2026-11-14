@@ -86,6 +86,7 @@ void LRSetDatalessMaterialization(void);
 + (NSString *)executionMode;            // interpreter | automatic | jit
 + (void)setExecutionMode:(NSString *)mode;
 + (BOOL)debuggerAttached;
++ (BOOL)executableMemoryAllowed;        // CS_DEBUGGED: iOS allows JIT (kept after StikDebug detaches)
 + (void)setDesktopDisplayWidth:(NSUInteger)width height:(NSUInteger)height;   // KMS preferred mode for the next desktop
 + (NSInteger)desktopResolutionIndex;
 + (BOOL)desktopMetalPresentationEnabled;

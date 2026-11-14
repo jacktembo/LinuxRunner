@@ -592,7 +592,10 @@ static NSString *LRThermalState(void) {
 // before that, and the mode the user picked is never reported as active.
 static NSString *const LRExecutionModeKey=@"LinuxRunnerExecutionMode";
 static NSString *const LRJITAttemptKey=@"LinuxRunnerJITAttemptInProgress";
-static NSString *const LRJITCrashedPathsKey=@"LinuxRunnerJITCrashedPaths";
+// v2: 1.1.1 attempted the classic path without checking CS_DEBUGGED, so a
+// crash recorded under the old key may come from an unauthorised attempt and
+// disabled the classic path for good (GitHub issue #29). Start a fresh list.
+static NSString *const LRJITCrashedPathsKey=@"LinuxRunnerJITCrashedPaths.v2";
 static BOOL LRJITActive;
 static NSString *LRJITDetail=@"Interpreter";
 static NSString *LRJITLastFailure;   // reason of the last refused or failed activation, nil if none
@@ -651,6 +654,15 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
     struct kinfo_proc info={0};size_t size=sizeof info;int mib[]={CTL_KERN,KERN_PROC,KERN_PROC_PID,getpid()};
     return sysctl(mib,4,&info,&size,NULL,0)==0&&(info.kp_proc.p_flag&P_TRACED);
 }
+// iOS sets CS_DEBUGGED once a debugger has attached to the process, and keeps
+// it after the debugger detaches. That is what allows executable memory, and
+// it is what StikDebug leaves behind on iOS 18 and earlier (it attaches,
+// enables JIT and detaches, so P_TRACED alone reads "not attached").
+extern int csops(pid_t pid,unsigned int ops,void *useraddr,size_t usersize);
++ (BOOL)executableMemoryAllowed {
+    uint32_t flags=0;
+    return csops(getpid(),0 /* CS_OPS_STATUS */,&flags,sizeof flags)==0&&(flags&0x10000000 /* CS_DEBUGGED */);
+}
 + (BOOL)requiresPreparedJITRegion { return NSProcessInfo.processInfo.operatingSystemVersion.majorVersion>=26; }
 + (NSDictionary *)executionBackendStatus {
     return @{@"compiled":@(self.jitCompiledIn),@"mode":self.executionMode,@"active":LRJITActive?@"jit":@"interpreter",@"detail":LRJITDetail?:@"",@"debugger":@(self.debuggerAttached),@"txm":@(self.requiresPreparedJITRegion)};
@@ -661,13 +673,18 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
     if(LRJITActive){if(detail)*detail=LRJITDetail;return YES;}
     NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
     NSArray *crashed=[defaults stringArrayForKey:LRJITCrashedPathsKey]?:@[];
-    BOOL traced=self.debuggerAttached,txmDevice=self.requiresPreparedJITRegion;
+    BOOL traced=self.debuggerAttached,txmDevice=self.requiresPreparedJITRegion,allowed=self.executableMemoryAllowed;
     NSMutableArray *paths=[NSMutableArray array];
-    // Classic dual mapping: iOS's own mprotect check decides; harmless when refused.
-    if(![crashed containsObject:@"classic"])[paths addObject:@"classic"];
+    // Classic dual mapping: only once iOS allows executable memory (CS_DEBUGGED).
+    // Without it the attempt is refused at best, and can end the app.
+    if(allowed&&![crashed containsObject:@"classic"])[paths addObject:@"classic"];
     // TXM: only while a debugger is attached (a brk without StikDebug's script kills the app).
     if(txmDevice&&traced&&![crashed containsObject:@"txm"])[paths addObject:@"txm"];
-    NSString *why=traced||!txmDevice?@"No usable JIT path":@"Attach LinuxRunner with StikDebug first (iOS 26 and later need its script)";
+    NSString *why;
+    if(paths.count==0&&crashed.count)why=[NSString stringWithFormat:@"JIT is disabled: an earlier attempt (%@) ended LinuxRunner",[crashed componentsJoinedByString:@", "]];
+    else if(txmDevice&&!traced)why=@"Attach LinuxRunner with StikDebug first (iOS 26 and later need its script)";
+    else if(!allowed&&!traced)why=@"iOS has not allowed JIT for LinuxRunner yet: enable JIT for it in StikDebug, then return here";
+    else why=@"No usable JIT path";
     for(NSString *path in paths){
         [defaults setObject:path forKey:LRJITAttemptKey];[defaults synchronize];
         char text[256]={0};int rc=jit_ios_acquire([path isEqual:@"txm"],text,sizeof text);
@@ -686,7 +703,7 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
 // expected value) and the translator's counters (native segments installed
 // in guest block code streams, which the dispatcher then runs).
 + (NSDictionary *)jitStatusReport {
-    NSMutableDictionary *r=[NSMutableDictionary dictionaryWithDictionary:@{@"compiled":@(self.jitCompiledIn),@"mode":self.executionMode,@"debugger":@(self.debuggerAttached),@"txm":@(self.requiresPreparedJITRegion),@"os":NSProcessInfo.processInfo.operatingSystemVersionString}];
+    NSMutableDictionary *r=[NSMutableDictionary dictionaryWithDictionary:@{@"compiled":@(self.jitCompiledIn),@"mode":self.executionMode,@"debugger":@(self.debuggerAttached),@"allowed":@(self.executableMemoryAllowed),@"txm":@(self.requiresPreparedJITRegion),@"os":NSProcessInfo.processInfo.operatingSystemVersionString}];
     NSArray *crashed=[NSUserDefaults.standardUserDefaults stringArrayForKey:LRJITCrashedPathsKey]?:@[];
     NSString *state,*detail;
 #ifdef LINUXRUNNER_JIT_BUILD
@@ -698,6 +715,7 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
     else if([self.executionMode isEqual:@"interpreter"]){state=@"Interpreter Active";detail=self.debuggerAttached?@"A debugger is attached: choose Automatic or JIT to use it":@"Interpreter selected";}
     else if(LRJITLastFailure){state=@"JIT Unavailable";detail=[LRJITLastFailure stringByAppendingString:@" · interpreter fallback active"];}
     else if(self.debuggerAttached){state=@"JIT Available";detail=@"Debugger attached · tap Activate JIT Now";}
+    else if(self.executableMemoryAllowed&&!self.requiresPreparedJITRegion){state=@"JIT Available";detail=@"iOS allows JIT for LinuxRunner · tap Activate JIT Now";}
     else {state=@"Waiting for JIT Authorization";detail=self.requiresPreparedJITRegion?@"Debugger attachment not detected · attach with StikDebug (its universal script) and return here":@"Executable memory not yet allowed · enable JIT for LinuxRunner in StikDebug and return here";}
 #else
     state=@"Interpreter Active";detail=@"This build is interpreter-only";
@@ -710,6 +728,7 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
     // check (harmless when refused); TXM only runs while a debugger is attached.
     if(!self.jitCompiledIn||LRJITActive||[self.executionMode isEqual:@"interpreter"])return;
     if(self.requiresPreparedJITRegion&&!self.debuggerAttached){[self logCategory:@"JIT" event:@"foreground check: no debugger attached"];return;}
+    if(!self.executableMemoryAllowed&&!self.debuggerAttached){[self logCategory:@"JIT" event:@"foreground check: JIT not yet allowed by iOS"];return;}
     NSString *why=nil;[self activateJIT:&why];
 }
 // 1.1.0: the desktop is landscape 960x540 by default, also in portrait (the
@@ -759,7 +778,7 @@ static NSString *LRJITLastFailure;   // reason of the last refused or failed act
     NSString *mode=self.executionMode;
     if(!self.jitCompiledIn||[mode isEqual:@"interpreter"])return;
     // Automatic and JIT: use what iOS already allows (e.g. launched from StikDebug).
-    if(!self.requiresPreparedJITRegion||self.debuggerAttached){NSString *why=nil;[self activateJIT:&why];}
+    if(self.debuggerAttached||(self.executableMemoryAllowed&&!self.requiresPreparedJITRegion)){NSString *why=nil;[self activateJIT:&why];}
     else LRJITDetail=@"Interpreter · attach with StikDebug in Settings › Execution Engine to start the JIT";
 }
 + (NSString *)activeDistributionID {
