@@ -146,25 +146,27 @@ LinuxRunner is distributed as an IPA file that you sideload. It is not in the Ap
 
 **About signing:** with a free Apple ID, iOS requires you to re-sign the app every 7 days. A paid Apple Developer account extends this to one year. Keep the same signing identity when you update, so your Linux environments stay in place.
 
+The latest published release is 1.1.1. Version 1.1.2, described here, is on `main` and can be [built from source](#building-from-source) until its release is published.
+
 You do **not** need JIT to install or use LinuxRunner. Back up important files before updating. Details: [Installation and signing](docs/INSTALLATION.md).
 
 ## First steps
 
 Installing the app and installing Linux are two separate steps.
 
-1. Open the **Distributions** tab and choose a distribution under **Add a Distribution**. Debian or Arch Linux ARM are the best choices for desktop use; Alpine is a small terminal-only environment.
+1. Open the **Distributions** tab and choose a distribution under **Add a Distribution**. Debian or Arch Linux ARM are the best choices for desktop use; Ubuntu, Zorin OS, Pop!_OS and Void Linux are experimental; Alpine is a small terminal-only environment.
 2. Review the download size and storage, then tap **Install**.
 3. Keep the app open while it sets up the system. If it asks you to restart LinuxRunner, do so; setup resumes on its own.
 4. On **Your Account**, create a Linux user. Turn on **Administrator (can use sudo)** if you want to install packages.
-5. Install **Desktop Components** when offered, or choose **Later** to stay terminal-only.
-6. From **Home**, open **Terminal** or **Open Desktop**.
+5. On **Choose a desktop**, pick one of the desktops your distribution offers and install it, or tap **Later** to stay terminal-only. Each distribution starts with its own default, such as Zorin Desktop on Zorin OS or Xfce on Kali, Pop!_OS and Void.
+6. From **Home**, open **Terminal**, or tap **Open** on the Desktop card. **Home** also has the App Store, Files, Graphics, Devices, Diagnostics, CPU & Memory and Task Manager.
 
 Try a few commands in the terminal:
 
 ```sh
 cat /etc/os-release   # which distribution you are running
 uname -m              # prints aarch64
-sudo apt update       # Debian and Kali; use pacman, dnf or apk on the others
+sudo apt update       # Debian, Ubuntu, Zorin OS, Pop!_OS and Kali; use pacman, dnf, xbps-install or apk on the others
 ```
 
 Full walkthrough: [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/USER_GUIDE.md)
@@ -192,7 +194,7 @@ Only one environment runs at a time. To switch, choose **Use on Next Launch** an
 
 ## Desktop environments
 
-Choose a desktop in **Settings → Desktop Environment**: install it, pick it under **Open Desktop Starts**, then return to **Home** and tap **Open Desktop**. Save your work and stop the running desktop before switching.
+Choose a desktop in **Settings → Desktop Environment**. The screen lists only the desktops your distribution can install and start. Tap one to select it; if it is not installed yet, LinuxRunner asks before downloading it and shows each step as it installs. The choice applies the next time the desktop starts, so save your work and stop the running desktop before switching.
 
 | Desktop | Status |
 | --- | --- |
@@ -223,7 +225,7 @@ Compatible Linux graphics run on Apple's GPU through this chain:
 Linux app (OpenGL) → Mesa virgl driver → virglrenderer → ANGLE → Metal → Apple GPU
 ```
 
-Open **Settings → Graphics → Linux GPU Device** and check **Active renderer**. **Automatic** starts the virtual GPU and falls back to software rendering, with the reason shown, if it cannot. After changing the setting, fully close and reopen LinuxRunner. Not every app or graphics API is accelerated, and Vulkan is not generally available. Measurements: [Performance](docs/PERFORMANCE.md).
+Open **Settings → Graphics** (or **Home → Graphics**). The top of the screen shows whether the Metal GPU is active. Under **Linux GPU**, **Automatic** starts the virtual GPU and falls back to software rendering if it cannot; **Metal GPU** and **Software** force one or the other. **Applications** chooses how programs opened from LinuxRunner draw, and **Live** shows what the running desktop and each OpenGL program use. Desktops drawn by the GPU are shown straight from the virtual GPU, which keeps window dragging light. After changing the setting, fully close and reopen LinuxRunner. Not every app or graphics API is accelerated, and Vulkan is not generally available. Measurements: [Performance](docs/PERFORMANCE.md).
 
 ### JIT (optional)
 
@@ -239,20 +241,22 @@ To try it, enable **Settings → Advanced → Developer Mode**, then open **Exec
 4. In the viewer, choose **Desktop → Use iPhone as Trackpad**.
 5. Slide to move, tap to click, hold and slide to drag. Use two fingers to scroll, or tap with two fingers to right-click.
 
-Keyboards and mice connected to the device also work. The default desktop size is 960 × 540; change it under **Desktop → Desktop Settings… → Display**. LinuxRunner shows one desktop on one display. Plain screen mirroring shows the same image on both screens, and Miracast-only receivers are unsupported. Details: [Networking and displays](docs/NETWORKING_AND_DISPLAYS.md).
+Keyboards and mice connected to the device also work. The display refreshes at its own rate, up to 120 Hz. The default desktop size is 960 × 540; change it under **Desktop → Desktop Settings… → Display**. LinuxRunner shows one desktop on one display. Plain screen mirroring shows the same image on both screens, and Miracast-only receivers are unsupported. Details: [Networking and displays](docs/NETWORKING_AND_DISPLAYS.md).
 
 ### Files
 
-Use **Settings → File Sharing** to import and export files. Each environment has a shared folder at `/mnt/LinuxRunnerShared`, also linked as `~/Shared` when that name is free. Details: [File sharing](docs/FILE_SHARING.md).
+Use **Settings → File Sharing** to import and export files. Each environment has a shared folder at `/mnt/LinuxRunnerShared`, also linked as `~/Shared` when that name is free. To reach files from another computer on your Wi-Fi, start **Pocket Cloud** or **SSH Mode** in [LinuxRunner Modes](#linuxrunner-modes). Details: [File sharing](docs/FILE_SHARING.md).
 
 ### Networking
 
-Linux programs use your device's internet connection through normal sockets. `ip addr`, `ip link` and `ip route` show the interfaces and routes iOS makes available. Linux cannot control radios or send raw packets, and Bluetooth networking is unsupported.
+Linux programs use your device's internet connection through normal sockets. `ip addr`, `ip link` and `ip route` show the interfaces and routes iOS makes available. Linux cannot control radios or send raw packets, and Bluetooth networking is unsupported. Bluetooth serial boards can be connected in **Settings → Devices**; they reconnect automatically and are remembered.
+
+Servers you start in Linux on `0.0.0.0` are reachable from other devices on the same Wi-Fi while LinuxRunner is open or running in the background. [LinuxRunner Modes](#linuxrunner-modes) sets up SSH, RDP, a web server and a file server for you.
 
 ## How it works
 
 ```text
- Linux programs and libraries (Debian, Arch, Fedora, ...)
+ Linux programs and libraries (Debian, Ubuntu, Arch, Fedora, ...)
         │  ELF loader maps ARM64 binaries
         ▼
  ARM64 interpreter ──── optional JIT, when iOS allows it
@@ -270,7 +274,7 @@ Linux programs use your device's internet connection through normal sockets. `ip
 2. The **interpreter** runs their instructions. The optional **JIT** compiles frequently used code to native instructions.
 3. The **compatibility layer** implements Linux system calls on top of iOS: processes, threads, signals, memory mappings, files and sockets.
 4. Each environment has its own **root filesystem**. Linux ownership and permissions are stored in a database alongside the real files.
-5. **Desktops** run on X11 (shown through a built-in VNC viewer) or on a virtual display for Wayland compositors. Graphics can use the Metal path above.
+5. **Desktops** run on X11 (shown through a built-in VNC viewer) or on a virtual display for Wayland compositors. Graphics can use the Metal path above; a desktop drawn by the GPU is read directly from the virtual GPU, and the VNC connection then carries only input.
 
 More detail: [Architecture](docs/ARCHITECTURE.md)
 
@@ -279,7 +283,8 @@ More detail: [Architecture](docs/ARCHITECTURE.md)
 - **ARM64 Linux only.** No x86 programs, no Linux kernel, no kernel modules, no systemd as init and no containers such as Docker.
 - **Incomplete coverage.** Some system calls, graphics features and apps are missing or partial; see the [syscall matrix](docs/SYSCALL_MATRIX.md).
 - **iOS controls the app's life.** iOS can pause or close LinuxRunner. Closing the app ends running Linux programs; saved files remain.
-- **Memory and heat.** Large desktops and apps can exceed the device's memory or thermal limits.
+- **Memory and heat.** Large desktops and apps can exceed the device's memory or thermal limits. Zorin Desktop and GNOME need the most.
+- **Network modes are for trusted Wi-Fi.** Liftoff serves `~/Sites` without a password, and Pocket Cloud and RDP are not meant for public networks. Start them only on a network you trust, and stop them when you are done.
 - **No security isolation inside the app.** Linux users and permissions help programs work correctly; they do not protect against hostile software. The iOS app sandbox is the security boundary.
 - **Experimental parts.** Ubuntu, Zorin OS, Pop!_OS, Void Linux, COSMIC, Hyprland, Wayfire, KDE Plasma, SteamOS and the Metal backend are still experimental.
 
@@ -299,6 +304,12 @@ No. The interpreter is the default and works everywhere. JIT is an optional spee
 **Can I run x86 or Windows programs?**
 No. Only ARM64 Linux programs run. Most distributions package ARM64 builds of their software.
 
+**Can I use the Linux on my iPhone from my computer?**
+Yes, on the same Wi-Fi. [LinuxRunner Modes](#linuxrunner-modes) offers SSH for terminals and VS Code, RDP for the desktop, and Pocket Cloud for files.
+
+**Can I run AI coding agents?**
+Yes. Agent Mode installs Claude Code, Codex CLI and OpenCode. They run on the interpreter, so they are slower than on a computer, and each signs in with your own account.
+
 **Will I lose my files when I update?**
 Saved files persist across normal updates. Keep the same signing identity when you update, and back up important files first.
 
@@ -309,7 +320,7 @@ App Store rules restrict apps that download code which adds new features, and th
 
 1. Check [Troubleshooting](docs/TROUBLESHOOTING.md) before reinstalling an environment.
 2. Use **App Manager → Repair Center** to diagnose and repair packages.
-3. Use **Settings → Advanced → Export Open Desktop Report** to collect session details. Check the report for personal information before you share it.
+3. Use **Settings → Storage & Maintenance → Export Desktop Report** to collect session details, including the Modes service logs. Check the report for personal information before you share it.
 4. [Open an issue](https://github.com/jacktembo/LinuxRunner/issues/new/choose) with your device, iOS version, LinuxRunner version and build, distribution, desktop, graphics renderer and the steps that reproduce the problem.
 
 Report security vulnerabilities privately; see [SECURITY.md](SECURITY.md).
