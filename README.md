@@ -8,7 +8,7 @@
 Terminals, package managers, full desktops and GPU-accelerated apps, with no jailbreak.</p>
 
 <p align="center">
-  <img src="assets/branding/version-badge.svg" alt="Version 1.1.1, build 905">
+  <img src="assets/branding/version-badge.svg" alt="Version 1.1.2, build 910">
   <img src="assets/branding/platform-badge.svg" alt="iOS and iPadOS">
   <a href="LICENSE.md"><img src="assets/branding/license-badge.svg" alt="GPL-3.0"></a>
 </p>
@@ -23,7 +23,7 @@ Terminals, package managers, full desktops and GPU-accelerated apps, with no jai
 
 ---
 
-LinuxRunner is an iOS and iPadOS app that runs ARM64 Linux programs directly on your device. Pick a distribution such as Debian, Arch Linux ARM or Fedora, and you get its real package manager, real binaries and a real desktop you can use on the phone or on an external display.
+LinuxRunner is an iOS and iPadOS app that runs ARM64 Linux programs directly on your device. Pick a distribution such as Debian, Ubuntu, Arch Linux ARM or Fedora, and you get its real package manager, real binaries and a real desktop you can use on the phone or on an external display.
 
 There is no virtual machine and no Linux kernel inside the app. LinuxRunner reads Linux programs, runs their ARM64 instructions in its own interpreter (or an optional JIT), and answers their system calls with a compatibility layer built on iOS.
 
@@ -34,6 +34,7 @@ There is no virtual machine and no Linux kernel inside the app. LinuxRunner read
 ## Contents
 
 - [Features](#features)
+- [LinuxRunner Modes](#linuxrunner-modes)
 - [Screenshots](#screenshots)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -53,13 +54,15 @@ There is no virtual machine and no Linux kernel inside the app. LinuxRunner read
 
 | Feature | What you get |
 | --- | --- |
-| **Six Linux distributions** | Debian 13, Arch Linux ARM, Fedora 44, Kali 2026.3, Alpine 3.24 and experimental SteamOS ARM64. Each keeps its own packages and user accounts. |
+| **Ten Linux distributions** | Debian 13, Ubuntu 24.04, Zorin OS 18, Pop!_OS 24.04, Void Linux, Arch Linux ARM, Fedora 44, Kali 2026.3, Alpine 3.24 and experimental SteamOS ARM64. Each keeps its own packages and user accounts. |
+| **LinuxRunner Modes** | Six optional modes: AI coding agents, RDP, SSH, a web preview server, a Wi-Fi file server and a retro game lab. |
 | **Native terminal** | Sharp text on true black, with a two-row key bar for Esc, Tab, Ctrl, Alt, arrows, Home, End, Page Up, Page Down and clipboard. |
-| **Linux desktops** | LinuxRunner Desktop, LXQt, Xfce, Enlightenment and KDE Plasma, plus experimental Wayfire and Hyprland. |
+| **Linux desktops** | LinuxRunner Desktop, Xfce, MATE, Cinnamon, Budgie, LXQt, Zorin Desktop, Ubuntu GNOME, Enlightenment and KDE Plasma, plus experimental COSMIC, Wayfire and Hyprland. |
+| **CPU & Memory, Task Manager** | Choose how many CPU cores and how much memory Linux may use, and see what each Linux process uses. |
 | **Metal GPU acceleration** | A virtual Linux GPU sends compatible OpenGL work to Apple's GPU through Metal. |
-| **External display** | Show the desktop on a monitor or AirPlay receiver and use your iPhone as a trackpad. |
+| **External display** | Show the desktop on a monitor or AirPlay receiver at the screen's own refresh rate (up to 120 Hz) and use your iPhone as a trackpad. |
 | **Optional JIT** | Faster execution for long-running programs when iOS allows it. The interpreter always works without it. |
-| **Files and networking** | Import and export files, a shared folder per environment, and normal Linux sockets over your device's connection. |
+| **Files and networking** | Import and export files, a shared folder per environment, normal Linux sockets over your device's connection, and optional SSH, RDP and WebDAV access on your Wi-Fi. |
 | **Repair tools** | App Manager's Repair Center diagnoses and repairs package problems; desktop reports help with bug reports. |
 
 Apps known to run include Firefox, Visual Studio Code, FreeCAD, ONLYOFFICE, Blender, Dolphin, Telegram Desktop and Vesktop (Discord). Compatibility varies by app and distribution; see [Compatibility](docs/COMPATIBILITY.md).
@@ -90,7 +93,37 @@ Apps known to run include Firefox, Visual Studio Code, FreeCAD, ONLYOFFICE, Blen
 </tr>
 </table>
 
+<table>
+<tr>
+<td align="center" width="50%"><a href="assets/screenshots/v1.1.2/zorin-desktop.jpg"><img src="assets/screenshots/v1.1.2/zorin-desktop.jpg" alt="Zorin Desktop on Zorin OS" width="100%"></a><br><sub><b>Zorin OS · Zorin Desktop</b></sub></td>
+<td align="center" width="50%"><a href="assets/screenshots/v1.1.2/ubuntu-gnome.jpg"><img src="assets/screenshots/v1.1.2/ubuntu-gnome.jpg" alt="Ubuntu with the GNOME desktop" width="100%"></a><br><sub><b>Ubuntu · GNOME</b></sub></td>
+</tr>
+<tr>
+<td align="center"><a href="assets/screenshots/v1.1.2/pop-xfce.jpg"><img src="assets/screenshots/v1.1.2/pop-xfce.jpg" alt="Pop!_OS with the Xfce desktop" width="100%"></a><br><sub><b>Pop!_OS · Xfce</b></sub></td>
+<td align="center"><a href="assets/screenshots/v1.1.2/void-xfce.jpg"><img src="assets/screenshots/v1.1.2/void-xfce.jpg" alt="Void Linux with the Xfce desktop" width="100%"></a><br><sub><b>Void Linux · Xfce</b></sub></td>
+</tr>
+<tr>
+<td align="center"><a href="assets/screenshots/v1.1.2/debian-mate.jpg"><img src="assets/screenshots/v1.1.2/debian-mate.jpg" alt="MATE desktop on Debian" width="100%"></a><br><sub><b>Debian · MATE</b></sub></td>
+<td align="center"><a href="assets/screenshots/v1.1.2/debian-budgie.jpg"><img src="assets/screenshots/v1.1.2/debian-budgie.jpg" alt="Budgie desktop on Debian" width="100%"></a><br><sub><b>Debian · Budgie</b></sub></td>
+</tr>
+</table>
+
 More captures are in [assets/screenshots](assets/screenshots/README.md).
+
+## LinuxRunner Modes
+
+Six optional ways to use the Linux on your device, in **Settings → General → LinuxRunner Modes**. Every mode is off until you install and start it, and everything stops when Linux stops.
+
+| Mode | What it does |
+| --- | --- |
+| **Agent Mode** | Claude Code, Codex CLI and OpenCode in your Linux terminal, with Node.js, git, ripgrep and Python. **Open Agent Terminal** starts them in `~/Projects` as your Linux user. Each agent signs in with your own account; LinuxRunner never sees your keys. |
+| **RDP Mode** | Use the desktop running on your iPhone from Windows Remote Desktop, Microsoft's Windows App or Remmina. The phone and the computer control the same desktop. |
+| **SSH Mode** | An OpenSSH server on port 2222 for terminals, VS Code Remote-SSH, scp, rsync and SFTP. Root login is refused. |
+| **Liftoff** | Serves `~/Sites` on port 8080. Open it in Safari on the device, or scan the QR code from another device on the same Wi-Fi. |
+| **Pocket Cloud** | A Wi-Fi file server: `~/Pocket Cloud` is shared over WebDAV on port 8081 with a new password at every start. Connect from Finder, the Files app, Windows or a browser. |
+| **Arcadia** | RetroArch with the classic-console emulators your distribution offers. No games are included. |
+
+RDP Mode shares the running desktop, so open the desktop in LinuxRunner first. Network modes are reachable only from devices on the same Wi-Fi, while LinuxRunner is open or running in the background. Gemini CLI is not offered in Agent Mode because it needs WebAssembly, which Node.js cannot use under LinuxRunner's interpreter.
 
 ## Requirements
 
@@ -140,7 +173,11 @@ Full walkthrough: [Getting started](docs/GETTING_STARTED.md) · [User guide](doc
 
 | Distribution | Package manager | Desktops | Status |
 | --- | --- | --- | --- |
-| **Debian 13** | `apt` | LinuxRunner Desktop, LXQt; experimental KDE Plasma and Wayfire | Recommended. Widest app support. |
+| **Debian 13** | `apt` | LinuxRunner Desktop, Xfce, MATE, Cinnamon, Budgie, LXQt; experimental KDE Plasma and Wayfire | Recommended. Widest app support. |
+| **Ubuntu 24.04** | `apt` | Ubuntu GNOME, Xfce, MATE, Cinnamon, Budgie, i3 | Experimental. Canonical's Ubuntu Base. |
+| **Zorin OS 18** | `apt` | Zorin Desktop (default), Xfce | Experimental. Ubuntu base with Zorin OS's repositories, themes and wallpaper. |
+| **Pop!_OS 24.04** | `apt` | Xfce (default); experimental COSMIC | Experimental. Ubuntu base with System76's repository and look. |
+| **Void Linux** | `xbps` | Xfce | Experimental. Independent, very light rolling release. |
 | **Arch Linux ARM** | `pacman` | LinuxRunner Desktop, LXQt, Enlightenment, KDE Plasma, Wayfire; experimental Hyprland | Recommended for newer packages. |
 | **Fedora 44** | `dnf` | Lightweight GTK desktop, KDE Plasma | Official Fedora image. Sound not yet tested. |
 | **Kali Linux 2026.3** | `apt` | Xfce, optional tool sets | Official root filesystem. Large tool sets install slowly. |
@@ -161,7 +198,10 @@ Choose a desktop in **Settings → Desktop Environment**: install it, pick it un
 | --- | --- |
 | **LinuxRunner Desktop** | Default. Lightweight Openbox session with a panel and file manager. Also the fallback if another desktop fails. |
 | **LXQt** | Full X11 desktop with PCManFM-Qt and QTerminal. Best on Debian or Arch. |
-| **Xfce** | Kali's desktop. |
+| **Xfce** | Debian, Ubuntu, Pop!_OS, Zorin OS, Void and Kali (Kali's own desktop). |
+| **Zorin Desktop** | Zorin OS's own GNOME-based desktop with the Zorin menu, taskbar and themes. Needs a lot of memory. |
+| **MATE, Cinnamon, Budgie** | Debian and Ubuntu, from the distribution's own packages. |
+| **COSMIC** | Experimental, Pop!_OS only. The desktop and apps run on the GPU; its panel and dock are not shown yet. |
 | **Enlightenment** | Works on Arch. Disabled on Debian, where it stops at the splash screen. |
 | **KDE Plasma** | Experimental on Debian, Arch and Fedora, with Dolphin and Konsole. Menus respond slowly. |
 | **Wayfire** | Experimental Wayland compositor on Debian and Arch. GPU support on Arch. |
@@ -170,6 +210,10 @@ Choose a desktop in **Settings → Desktop Environment**: install it, pick it un
 Controls and recovery: [Desktop controls](docs/DESKTOP_CONTROLS.md)
 
 ## Using LinuxRunner
+
+### CPU & Memory and Task Manager
+
+Open **Home → CPU & Memory** (also in **Settings → Graphics & Performance**) to choose how much of your device Linux may use. **CPU Cores** is Automatic (4) or 1 up to your device's core count. **Linux Memory** is Automatic or 1 GB up to the device's limit: 2 GB on a 4 GB device, 3 GB on 6 GB, 4 GB on 8 GB, and 8 GB on devices with 12 GB or more. Changes apply the next time LinuxRunner starts. **Home → Task Manager** shows which Linux processes use the CPU and memory.
 
 ### GPU acceleration with Metal
 
@@ -237,7 +281,7 @@ More detail: [Architecture](docs/ARCHITECTURE.md)
 - **iOS controls the app's life.** iOS can pause or close LinuxRunner. Closing the app ends running Linux programs; saved files remain.
 - **Memory and heat.** Large desktops and apps can exceed the device's memory or thermal limits.
 - **No security isolation inside the app.** Linux users and permissions help programs work correctly; they do not protect against hostile software. The iOS app sandbox is the security boundary.
-- **Experimental parts.** Hyprland, Wayfire, KDE Plasma, SteamOS and the Metal backend are still experimental.
+- **Experimental parts.** Ubuntu, Zorin OS, Pop!_OS, Void Linux, COSMIC, Hyprland, Wayfire, KDE Plasma, SteamOS and the Metal backend are still experimental.
 
 Full list: [Known limitations](docs/KNOWN_LIMITATIONS.md)
 

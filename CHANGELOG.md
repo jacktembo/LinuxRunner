@@ -2,6 +2,37 @@
 
 User-visible changes follow Added / Changed / Fixed / Known Issues.
 
+## [1.1.2] — Unreleased (Build 910)
+
+Full release notes: [docs/releases/v1.1.2.md](docs/releases/v1.1.2.md).
+
+### Added
+
+- LinuxRunner Modes in Settings › General: Agent Mode (Claude Code, Codex CLI, OpenCode), RDP Mode, SSH Mode (port 2222), Liftoff (web preview on port 8080), Pocket Cloud (WebDAV on port 8081) and Arcadia (RetroArch). Every mode is off until installed and started.
+- Ubuntu 24.04, Zorin OS 18 (Zorin Desktop), Pop!_OS 24.04 (Xfce; experimental COSMIC) and Void Linux (xbps, Xfce), all experimental.
+- MATE, Cinnamon and Budgie on Debian and Ubuntu; Xfce on Debian.
+- CPU & Memory: choose how many CPU cores and how much memory Linux may use (up to 8 GB on devices with 12 GB or more). CPU & Memory and Task Manager are on Home.
+- Redesigned Desktop Environment, Graphics, Devices and File Sharing screens; desktop installs show per-step progress.
+- Bluetooth serial: automatic reconnection and saved boards.
+
+### Changed
+
+- While a finger is down, the display bridge forwards only input; GPU readback is coalesced to one per displayed frame.
+- External displays refresh at the screen's own rate (up to 120 Hz) instead of 30 Hz.
+- Slow-loading distributions get more time to start the GPU display; GPU display packages are retried once after a failed download.
+- Desktop Reports include the Modes service logs.
+
+### Fixed
+
+- Desktop freezes or disconnects when dragging a window or scrolling (CopyRect updates).
+- Disconnects with "Invalid cursor shape" or "Unsupported encoding or invalid rectangle" on GNOME and Zorin.
+- Typing freezing the desktop; the external-display pointer jumping back while moving.
+
+### Known Issues
+
+- COSMIC on Pop!_OS does not show its panel and dock yet.
+- RDP Mode shares the running desktop; network modes are reachable only on the same Wi-Fi while LinuxRunner is open or running in the background.
+
 ## [1.1.1] — 2026-11-08 (Build 905)
 
 Full release notes: [docs/releases/v1.1.1.md](docs/releases/v1.1.1.md).

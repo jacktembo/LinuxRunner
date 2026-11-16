@@ -20,6 +20,8 @@ struct SetupWizardView: View {
     @StateObject private var arch = ArchInstaller()
     @StateObject private var fedora = FedoraInstaller()
     @StateObject private var kali = KaliInstaller()
+    @StateObject private var ubuntu = UbuntuInstaller()
+    @StateObject private var voidInstaller = VoidInstaller()
     @StateObject private var steamos = SteamOSInstaller()
     @State private var steamOSImporter = false
     @State private var username = ""
@@ -33,7 +35,7 @@ struct SetupWizardView: View {
     @State private var chosenDesktop = "linuxrunner"
     private var step: SetupStep { SetupStep(rawValue: stepRaw) ?? .welcome }
 
-    private var anyInstallerRunning: Bool { debian.running || arch.running || fedora.running || kali.running || steamos.running }
+    private var anyInstallerRunning: Bool { debian.running || arch.running || fedora.running || kali.running || ubuntu.running || voidInstaller.running || steamos.running }
 
     var body: some View {
         NavigationView {
@@ -94,6 +96,10 @@ struct SetupWizardView: View {
         case "arch": return ("A rolling release with pacman and experimental X11 and Wayland desktops.", .info)
         case "fedora": return ("Experimental DNF userspace with a lightweight X11 desktop.", .info)
         case "kali": return ("The official Kali userspace with its Xfce desktop and optional standard tools. Kernel-level features such as monitor-mode Wi-Fi, raw packet capture and kernel modules are not available on iOS.", .warning)
+        case "ubuntu": return ("Experimental: Canonical's official Ubuntu Base with APT.", .warning)
+        case "pop": return ("Experimental: Ubuntu 24.04 with System76's Pop!_OS repository and look. Xfce is the default desktop; COSMIC can be selected as an experiment.", .warning)
+        case "zorin": return ("Experimental: Ubuntu 24.04 with Zorin OS's repositories and Zorin Desktop.", .warning)
+        case "void": return ("Experimental: an independent, very light rolling release with xbps and Xfce.", .warning)
         case "alpine": return ("Small, and mainly for the terminal.", .info)
         case "steamos": return ("Experimental: installed from Valve's SteamFrame recovery image. This is not official SteamOS support, and Steam games are not supported.", .warning)
         default: return nil
@@ -108,7 +114,7 @@ struct SetupWizardView: View {
                 DSScreenHeading(title: "Linux on your iPhone", message: "LinuxRunner runs real ARM64 Linux programs with its own interpreter. There is no virtual machine.")
             }
             VStack(alignment: .leading, spacing: DS.Space.md) {
-                featureRow("square.stack.3d.up", "Install a distribution", "Debian, Arch, Fedora, Kali, Alpine or SteamOS.")
+                featureRow("square.stack.3d.up", "Install a distribution", "Debian, Ubuntu, Arch, Fedora, Kali, Zorin OS, Pop!_OS, Void, Alpine or SteamOS.")
                 featureRow("person.crop.circle", "Create your account", "Your own Linux user, with sudo if you want it.")
                 featureRow("macwindow", "Choose a desktop", "A graphical desktop on this screen or an external display.")
             }
@@ -143,7 +149,7 @@ struct SetupWizardView: View {
                 }
             }
             if let note = distributionNote { DSNotice(text: note.0, symbol: note.1 == .warning ? "exclamationmark.triangle.fill" : "info.circle.fill", tone: note.1) }
-            let installed = manager.environments.filter { ($0.distributionID ?? "alpine") == distribution }
+            let installed = manager.environments.filter { ($0.flavor ?? $0.distributionID ?? "alpine") == distribution }
             if !installed.isEmpty {
                 VStack(alignment: .leading, spacing: DS.Space.sm) {
                     Text("Already installed").font(DS.Font.cardTitle).foregroundColor(DS.Palette.textPrimary)
@@ -227,16 +233,16 @@ struct SetupWizardView: View {
         let manifest = try? DebianManifest.load()
         let steamManifest = try? SteamOSManifest.load()
         let alpineBytes = Int64((try? Bundle.main.url(forResource: "root", withExtension: "tar.gz")?.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-        let download = distribution == "debian" ? (manifest?.downloadBytes ?? 0) : distribution == "fedora" ? FedoraImage.bytes : distribution == "kali" ? KaliImage.bytes : 0
+        let download = distribution == "debian" ? (manifest?.downloadBytes ?? 0) : distribution == "fedora" ? FedoraImage.bytes : distribution == "kali" ? KaliImage.bytes : ["ubuntu", "pop", "zorin"].contains(distribution) ? UbuntuImage.bytes : distribution == "void" ? VoidImage.bytes : 0
         let installed = distribution == "debian" ? (manifest?.installedBytes ?? 0) : alpineBytes * 3
         HStack(spacing: DS.Space.md) {
             DistroBadge(distributionID: distribution, size: 48)
             DSScreenHeading(title: "Install \(selectedDistributionName)", message: "Check the space it needs, then install.")
         }
         VStack(spacing: DS.Space.sm) {
-            DSKeyValueRow(key: "Download", value: distribution == "steamos" ? (steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil ? "Already downloaded" : ByteCountFormatter.string(fromByteCount: steamManifest?.source?.bytes ?? 0, countStyle: .file) + " from Valve") : distribution == "arch" ? "Calculated from the signed package selection" : ["debian", "fedora", "kali"].contains(distribution) ? ByteCountFormatter.string(fromByteCount: download, countStyle: .file) : "None (included in the app)")
+            DSKeyValueRow(key: "Download", value: distribution == "steamos" ? (steamManifest.flatMap { SteamOSInstaller.downloadedImage($0) } != nil ? "Already downloaded" : ByteCountFormatter.string(fromByteCount: steamManifest?.source?.bytes ?? 0, countStyle: .file) + " from Valve") : distribution == "arch" ? "Calculated from the signed package selection" : ["debian", "fedora", "kali", "ubuntu", "pop", "zorin", "void"].contains(distribution) ? ByteCountFormatter.string(fromByteCount: download, countStyle: .file) : "None (included in the app)")
             Divider().overlay(DS.Palette.border)
-            DSKeyValueRow(key: distribution == "debian" || distribution == "steamos" ? "Installed size" : "Installed size (estimate)", value: distribution == "steamos" ? ByteCountFormatter.string(fromByteCount: steamManifest?.installedBytes ?? 0, countStyle: .file) : distribution == "arch" ? "At least 1.5 GB free for base installation" : distribution == "fedora" ? "At least 2 GB free for base installation" : distribution == "kali" ? "About 0.9 GB base; desktop about 2 GB more; standard tools about 6 GB more" : ByteCountFormatter.string(fromByteCount: installed, countStyle: .file))
+            DSKeyValueRow(key: distribution == "debian" || distribution == "steamos" ? "Installed size" : "Installed size (estimate)", value: distribution == "steamos" ? ByteCountFormatter.string(fromByteCount: steamManifest?.installedBytes ?? 0, countStyle: .file) : distribution == "arch" ? "At least 1.5 GB free for base installation" : distribution == "void" ? "At least 1.5 GB free for base installation" : distribution == "fedora" || ["ubuntu", "pop", "zorin"].contains(distribution) ? "At least 2 GB free for base installation" : distribution == "kali" ? "About 0.9 GB base; desktop about 2 GB more; standard tools about 6 GB more" : ByteCountFormatter.string(fromByteCount: installed, countStyle: .file))
             Divider().overlay(DS.Palette.border)
             DSKeyValueRow(key: "Available", value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
         }
@@ -257,6 +263,15 @@ struct SetupWizardView: View {
             installerControls(running: kali.running, message: kali.message, fraction: kali.fraction, cancel: { kali.cancel() }, installTitle: "Install Kali Linux",
                               disabled: free < Int64(2_000_000_000), failure: kali.failure,
                               footer: "Kali's official ARM64 root filesystem (\(KaliImage.version)), checked against its published SHA-256; packages come from Kali's signed archive. The image's preset root and kali passwords are locked at first start; you create your own account next. Runs with LinuxRunner, without a Linux kernel or systemd.")
+        } else if ["ubuntu", "pop", "zorin"].contains(distribution) {
+            let flavor = UbuntuFlavor(rawValue: distribution)
+            installerControls(running: ubuntu.running, message: ubuntu.message, fraction: ubuntu.fraction, cancel: { ubuntu.cancel() }, installTitle: "Install \(flavor?.name ?? "Ubuntu")",
+                              disabled: free < Int64(2_000_000_000), failure: ubuntu.failure,
+                              footer: flavor.map { "\($0.name) \($0.version) is Ubuntu 24.04 with \($0.vendor) on top. LinuxRunner installs Canonical's official Ubuntu Base ARM64 (verified against its signed checksum), then adds \($0.vendor) (verified with its signing key) during desktop setup. Experimental; physical-device compatibility requires further testing." } ?? "Official Ubuntu Base ARM64, verified against Canonical's signed checksum. Experimental; desktop and physical-device compatibility require further testing.")
+        } else if distribution == "void" {
+            installerControls(running: voidInstaller.running, message: voidInstaller.message, fraction: voidInstaller.fraction, cancel: { voidInstaller.cancel() }, installTitle: "Install Void Linux",
+                              disabled: free < Int64(1_500_000_000), failure: voidInstaller.failure,
+                              footer: "Void Linux's official ARM64 ROOTFS (\(VoidImage.version)), checked against Void's signed checksum; packages come from Void's signed xbps repositories. The image's preset root password is locked at first start; you create your own account next. Runs with LinuxRunner, without a Linux kernel or runit.")
         } else if distribution == "steamos" {
             VStack(alignment: .leading, spacing: DS.Space.sm) {
                 Text(steamos.message).font(DS.Font.detail).foregroundColor(DS.Palette.textPrimary).fixedSize(horizontal: false, vertical: true)
@@ -357,9 +372,16 @@ struct SetupWizardView: View {
             let distro = DesktopCatalog.activeDistribution()
             DSScreenHeading(title: "Choose a desktop", message: "Installed from \(DesktopCatalog.distributionName(distro))'s own packages (network needed). You can add or switch desktops later in Settings.")
             VStack(spacing: DS.Space.sm) {
-                ForEach(DesktopCatalog.options) { option in desktopChoiceRow(option, distro: distro) }
+                // Only desktops this distribution can install and start are listed.
+                ForEach(DesktopCatalog.options.filter { DesktopCatalog.unavailableReason($0.id, distro) == nil }) { option in desktopChoiceRow(option, distro: distro) }
             }
-            .onAppear { if distro == "kali" && chosenDesktop == "linuxrunner" { chosenDesktop = "xfce" } }
+            .onAppear {
+                // Each distribution's own desktop is the default: Kali's Xfce, Zorin Desktop on Zorin OS.
+                if (distro == "kali" || distro == "void") && chosenDesktop == "linuxrunner" { chosenDesktop = "xfce" }
+                if LRRuntimeBridge.activeFlavor() == "zorin" && chosenDesktop == "linuxrunner" { chosenDesktop = "gnome" }
+                // Pop!_OS: Xfce until COSMIC's panel and dock are shown (COSMIC stays selectable as experimental).
+                if LRRuntimeBridge.activeFlavor() == "pop" && chosenDesktop == "linuxrunner" { chosenDesktop = "xfce" }
+            }
             let chosen = DesktopCatalog.option(chosenDesktop)
             if working == nil {
                 if desktopReady && DesktopCatalog.isInstalled(chosen.id) {
@@ -405,6 +427,8 @@ struct SetupWizardView: View {
         let reason = DesktopCatalog.unavailableReason(option.id, distro)
         let selected = chosenDesktop == option.id && reason == nil
         Button { if reason == nil { chosenDesktop = option.id; problem = nil } } label: {
+            HStack(alignment: .top, spacing: DS.Space.md) {
+            DesktopBadge(desktopID: option.id, size: 40)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: DS.Space.xs) {
                     Text(option.title).font(DS.Font.cardTitle).foregroundColor(reason == nil ? DS.Palette.textPrimary : DS.Palette.textSecondary)
@@ -419,6 +443,8 @@ struct SetupWizardView: View {
                 }
                 Text(option.detail).font(DS.Font.caption).foregroundColor(DS.Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
                 if let reason { Label(reason, systemImage: "info.circle").font(DS.Font.caption).foregroundColor(DS.Palette.warning).fixedSize(horizontal: false, vertical: true) }
+            }
+            Spacer(minLength: 0)
             }
             .padding(.trailing, 28)
             .dsSelectable(selected, enabled: reason == nil)
@@ -437,13 +463,14 @@ struct SetupWizardView: View {
     private func configureExisting(_ environment: LinuxEnvironment) {
         problem = nil; desktopReady = false
         setupRoot = environment.rootfsName
-        distribution = environment.distributionID ?? "alpine"
+        // Pop!_OS and Zorin OS are Ubuntu environments with a flavor.
+        distribution = environment.flavor ?? environment.distributionID ?? "alpine"
         LRRuntimeBridge.setNextRootName(environment.rootfsName)
         stepRaw = manager.active(environment) ? SetupStep.account.rawValue : SetupStep.relaunch.rawValue
     }
 
     private func startInstall() {
-        guard !debian.running, !arch.running, !fedora.running, !kali.running, !steamos.running, !manager.busy else { return }
+        guard !debian.running, !arch.running, !fedora.running, !kali.running, !ubuntu.running, !voidInstaller.running, !steamos.running, !manager.busy else { return }
         problem = nil
         let known = Set(manager.environments.map(\.rootfsName))
         let finish: (String) -> Void = { root in
@@ -458,6 +485,11 @@ struct SetupWizardView: View {
             fedora.install { environment in manager.acceptInstalled(environment); finish(environment.rootfsName) }
         } else if distribution == "kali" {
             kali.install { environment in manager.acceptInstalled(environment); finish(environment.rootfsName) }
+        } else if ["ubuntu", "pop", "zorin"].contains(distribution) {
+            ubuntu.flavor = UbuntuFlavor(rawValue: distribution)
+            ubuntu.install { environment in manager.acceptInstalled(environment); finish(environment.rootfsName) }
+        } else if distribution == "void" {
+            voidInstaller.install { environment in manager.acceptInstalled(environment); finish(environment.rootfsName) }
         } else if distribution == "alpine" {
             manager.error = nil; manager.create(name: "Alpine Linux")
             Task { @MainActor in
@@ -468,7 +500,7 @@ struct SetupWizardView: View {
     }
 
     private func installSteamOSFromValve() {
-        guard !debian.running, !arch.running, !fedora.running, !kali.running, !steamos.running, !manager.busy else { return }
+        guard !debian.running, !arch.running, !fedora.running, !kali.running, !ubuntu.running, !voidInstaller.running, !steamos.running, !manager.busy else { return }
         problem = nil
         steamos.installFromValve { environment in
             manager.acceptInstalled(environment)
@@ -479,7 +511,7 @@ struct SetupWizardView: View {
     }
 
     private func installSteamOS(from source: URL) {
-        guard !debian.running, !arch.running, !fedora.running, !kali.running, !steamos.running, !manager.busy else { return }
+        guard !debian.running, !arch.running, !fedora.running, !kali.running, !ubuntu.running, !voidInstaller.running, !steamos.running, !manager.busy else { return }
         problem = nil
         steamos.install(source: source) { environment in
             manager.acceptInstalled(environment)
@@ -559,33 +591,54 @@ struct DesktopOption: Identifiable {
 }
 
 // What each distribution can actually install and start, matching
-// desktop-profile.sh. Unavailable options say why instead of disappearing.
+// desktop-profile.sh. Pickers list only the available ones.
 enum DesktopCatalog {
-    static let options: [DesktopOption] = [
+    static var options: [DesktopOption] { [
         DesktopOption(id: "linuxrunner", title: "LinuxRunner Desktop", detail: "Openbox with a panel and file manager. Fastest start and lowest memory use; best for first-time Linux users.", experimental: false, lightweight: true),
-        DesktopOption(id: "xfce", title: "Xfce", detail: "On Kali: Kali's own desktop (kali-desktop-xfce) with the Kali menu, themes and wallpaper.", experimental: false, lightweight: false),
+        DesktopOption(id: "xfce", title: "Xfce", detail: "The Xfce desktop: panel, menu, Thunar file manager and settings. On Kali, Kali's own desktop with its menu, themes and wallpaper.", experimental: false, lightweight: true),
         DesktopOption(id: "lxqt", title: "LXQt", detail: "A light, traditional Qt desktop with a start menu, panel and file manager.", experimental: false, lightweight: true),
+        DesktopOption(id: "i3", title: "i3", detail: "An X11 tiling window manager. Super+Enter opens a terminal; Super+D opens the application launcher.", experimental: true, lightweight: true),
+        LRRuntimeBridge.activeFlavor() == "zorin"
+            ? DesktopOption(id: "gnome", title: "Zorin Desktop", detail: "Zorin OS's own desktop: GNOME Shell with the Zorin menu, taskbar, desktop icons, tiling and Zorin themes. Requires a regular user and substantial memory.", experimental: true, lightweight: false)
+            : DesktopOption(id: "gnome", title: "Ubuntu GNOME", detail: "Ubuntu's GNOME Shell, dock, Yaru theme and wallpapers. Requires a regular user and substantial memory.", experimental: true, lightweight: false),
         DesktopOption(id: "wayfire", title: "Wayfire", detail: "A Wayland compositor with a panel and dock, running in the X display.", experimental: false, lightweight: false),
         DesktopOption(id: "enlightenment", title: "Enlightenment", detail: "A distinctive desktop with its own compositor; large download.", experimental: false, lightweight: false),
         DesktopOption(id: "plasma", title: "KDE Plasma", detail: "The full KDE desktop. Heaviest option: slowest start and highest memory use.", experimental: true, lightweight: false),
         DesktopOption(id: "hyprland", title: "Hyprland", detail: "A tiling Wayland compositor with Waybar, for keyboard-driven use.", experimental: true, lightweight: false),
-    ]
+        DesktopOption(id: "mate", title: "MATE", detail: "A classic, traditional desktop (the continuation of GNOME 2): panel, menus and the Caja file manager. Light and familiar.", experimental: true, lightweight: true),
+        DesktopOption(id: "cinnamon", title: "Cinnamon", detail: "Linux Mint's desktop: a Windows-like taskbar and menu. Composites on the GPU when Metal GPU is active.", experimental: true, lightweight: false),
+        DesktopOption(id: "cosmic", title: "COSMIC", detail: "Pop!_OS's own desktop by System76, on the GPU. Experimental: the desktop and apps run, but the panel and dock are not shown yet.", experimental: true, lightweight: false),
+        DesktopOption(id: "budgie", title: "Budgie", detail: "A modern, elegant desktop with a clean panel and the Raven side bar. Requires a regular user.", experimental: true, lightweight: false),
+    ] }
     static func option(_ id: String) -> DesktopOption { options.first { $0.id == id } ?? options[0] }
     static func activeDistribution() -> String {
         if LRRuntimeBridge.activeEnvironmentIsKali() { return "kali" }
+        if LRRuntimeBridge.activeEnvironmentIsUbuntu() { return "ubuntu" }
         if LRRuntimeBridge.activeEnvironmentIsDebian() { return "debian" }
         if LRRuntimeBridge.activeEnvironmentIsArch() { return "arch" }
         if LRRuntimeBridge.activeEnvironmentIsFedora() { return "fedora" }
+        if LRRuntimeBridge.activeEnvironmentIsVoid() { return "void" }
         return "alpine"
     }
     static func distributionName(_ d: String) -> String {
-        switch d { case "debian": return "Debian"; case "arch": return "Arch Linux ARM"; case "fedora": return "Fedora"; case "kali": return "Kali Linux"; default: return "Alpine Linux" }
+        if d == "ubuntu", let flavor = LRRuntimeBridge.activeFlavor().flatMap(UbuntuFlavor.init(rawValue:)) { return flavor.name }
+        switch d { case "debian": return "Debian"; case "ubuntu": return "Ubuntu"; case "arch": return "Arch Linux ARM"; case "fedora": return "Fedora"; case "kali": return "Kali Linux"; case "void": return "Void Linux"; default: return "Alpine Linux" }
     }
     static func unavailableReason(_ id: String, _ d: String) -> String? {
         switch (id, d) {
         case ("linuxrunner", _): return nil
-        case ("xfce", "kali"): return nil
-        case ("xfce", _): return "Offered on Kali Linux, where it is Kali's own desktop; not yet tested on this distribution."
+        case ("xfce", "void"): return nil   // Void's own desktop
+        case (_, "void"): return "Not yet tested on Void Linux in LinuxRunner."
+        case ("i3", _) where LRRuntimeBridge.activeEnvironmentIsSteamOS(): return "i3 installation is not available for this environment."
+        case ("i3", "debian"), ("i3", "ubuntu"), ("i3", "kali"), ("i3", "arch"), ("i3", "fedora"), ("i3", "alpine"): return nil
+        case ("gnome", "ubuntu"): return nil
+        case ("gnome", _): return "Ubuntu GNOME is currently available only for Ubuntu."
+        case ("cosmic", "ubuntu") where LRRuntimeBridge.activeFlavor() == "pop": return nil
+        case ("cosmic", _): return "COSMIC is Pop!_OS's desktop; it is offered on Pop!_OS."
+        case ("mate", "ubuntu"), ("cinnamon", "ubuntu"), ("budgie", "ubuntu"), ("xfce", "ubuntu"): return nil
+        case (_, "ubuntu"): return "This Ubuntu desktop has not yet been tested in LinuxRunner."
+        case ("xfce", "kali"), ("xfce", "debian"): return nil
+        case ("xfce", _): return "Offered on Debian, Ubuntu-based distributions and Kali; not yet tested on this distribution."
         case (_, "kali") where id != "linuxrunner": return "Kali's desktop is Xfce; other desktops are not yet tested on Kali."
         case ("lxqt", "fedora"): return "Not yet tested with Fedora in LinuxRunner, so it is not offered yet."
         case ("lxqt", _): return nil
@@ -596,6 +649,11 @@ enum DesktopCatalog {
         case ("wayfire", _): return nil
         case ("plasma", "alpine"): return "LinuxRunner's Plasma session supports Debian, Arch Linux ARM and Fedora only."
         case ("plasma", _): return nil
+        case ("mate", "alpine"), ("mate", "kali"): return "Not yet tested on this distribution in LinuxRunner."
+        case ("mate", _): return nil
+        case ("cinnamon", "alpine"), ("budgie", "alpine"): return "Alpine Linux does not package this desktop."
+        case ("cinnamon", "kali"), ("budgie", "kali"): return "Not yet tested on this distribution in LinuxRunner."
+        case ("cinnamon", _), ("budgie", _): return nil
         case ("hyprland", "arch"): return nil
         case ("hyprland", "debian"): return "Debian 13 does not package Hyprland; it needs Arch Linux ARM."
         case ("hyprland", _): return "Needs Arch Linux ARM, which packages Hyprland for this setup."
@@ -606,10 +664,13 @@ enum DesktopCatalog {
         switch id {
         case "xfce": return LRRuntimeBridge.xfceInstalled()
         case "lxqt": return LRRuntimeBridge.lxqtInstalled()
+        case "i3": return LRRuntimeBridge.i3Installed()
+        case "gnome": return LRRuntimeBridge.gnomeInstalled()
         case "enlightenment": return LRRuntimeBridge.enlightenmentInstalled()
         case "wayfire": return LRRuntimeBridge.wayfireInstalled()
         case "plasma": return LRRuntimeBridge.plasmaInstalled()
         case "hyprland": return LRRuntimeBridge.hyprlandInstalled()
+        case "mate", "cinnamon", "budgie", "cosmic": return LRRuntimeBridge.desktopInstalled(id)
         default: return true // part of the desktop components
         }
     }
@@ -617,10 +678,13 @@ enum DesktopCatalog {
         switch id {
         case "xfce": return { LRRuntimeBridge.installXfce($0, completion: $1) }
         case "lxqt": return { LRRuntimeBridge.installLXQt($0, completion: $1) }
+        case "i3": return { LRRuntimeBridge.installI3($0, completion: $1) }
+        case "gnome": return { LRRuntimeBridge.installGnome($0, completion: $1) }
         case "enlightenment": return { LRRuntimeBridge.installEnlightenment($0, completion: $1) }
         case "wayfire": return { LRRuntimeBridge.installWayfire($0, completion: $1) }
         case "plasma": return { LRRuntimeBridge.installPlasma($0, completion: $1) }
         case "hyprland": return { LRRuntimeBridge.installHyprland($0, completion: $1) }
+        case "mate", "cinnamon", "budgie", "cosmic": return { LRRuntimeBridge.installDesktop(id, progress: $0, completion: $1) }
         default: return nil
         }
     }

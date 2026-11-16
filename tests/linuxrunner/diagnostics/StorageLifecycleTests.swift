@@ -21,6 +21,7 @@ enum LRRuntimeBridge {
     static func discoverGraphicalApplications() -> [[String: Any]] { [] }
     static func logLines() -> [String] { [] }
     static func createEnvironment(_ root: String, completion: (NSError?) -> Void) { completion(nil) }
+    static func deleteEnvironment(_ root: String, completion: @escaping (NSError?) -> Void) { completion(nil) }
 }
 
 // Same-file extensions can observe private task state without adding test APIs

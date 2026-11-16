@@ -6,11 +6,14 @@ set -u
 profile=${1:-$(dirname "$0")/../../../app/LinuxRunner/GUISupport.bundle/desktop-profile.sh}
 profile=$(cd "$(dirname "$profile")" && pwd)/$(basename "$profile")
 eval "$(sed -n '/^classify_failure() {/,/^}/p' "$profile")"
+eval "$(sed -n '/^progress_filter() {/,/^}/p' "$profile")"
+eval "$(sed -n '/^run_progress() {/,/^}/p' "$profile")"
 eval "$(sed -n '/^install_packages() {/,/^}/p' "$profile")"
 work=$(mktemp -d) || exit 2
 trap 'rm -rf "$work"' EXIT
 cd "$work" || exit 2
 apt_log=$work/package.log
+SUPPORT_DIR=$work
 stage() { printf 'STAGE %s\n' "$1"; }
 have() { [ "$1" = "$manager" ]; }
 record() { printf '%s\n' "$*" >> "$work/invocations"; }
@@ -53,6 +56,9 @@ gui_helpers_stale() { return 1; }
 desktop_missing() { return 1; }
 audio_missing() { return 1; }
 accounts_missing() { return 1; }
+# No RPM database fingerprint here: the health check must run every time.
+rpmdb_key() { :; }
+os_id= distro_id=
 distro=fedora; dnf_fail=0; health_fail=1
 check > result 2>&1
 if grep -qx 'missing=package-database' profile-check.result; then
@@ -64,9 +70,13 @@ if grep -qx ready profile-check.result; then
  echo 'PASS current healthy database clears obsolete blocked state'
 else cat result; echo 'FAIL healthy database stays blocked'; fails=$((fails+1)); fi
 # The Fedora fallback uses GTK components; Arch keeps its existing Qt stack.
-eval "$(sed -n '/^desktop_commands_present() {/,/^}/p' "$profile")"
+# Use a disposable menu fixture rather than depending on a Fedora-specific
+# /etc file existing on the host running this isolated adapter test.
+eval "$(sed -n '/^desktop_commands_present() {/,/^}/p' "$profile" | sed "s@/etc/xdg/menus/lxde-applications.menu@$work/lxde-applications.menu@g")"
 have() { case " $available " in *" $1 "*) return 0;; *) return 1;; esac; }
 available='openbox xterm pcmanfm lxpanel'; distro=fedora
+if desktop_commands_present; then echo 'FAIL Fedora desktop accepted missing menu'; fails=$((fails+1)); else echo 'PASS Fedora desktop requires menu'; fi
+: > "$work/lxde-applications.menu"
 if desktop_commands_present; then echo 'PASS Fedora GTK desktop adapter'; else fails=$((fails+1)); fi
 distro=arch
 if desktop_commands_present; then echo 'FAIL Arch incorrectly accepts GTK-only stack'; fails=$((fails+1)); else echo 'PASS Arch Qt requirement preserved'; fi
