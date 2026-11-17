@@ -2,7 +2,7 @@
 
 User-visible changes follow Added / Changed / Fixed / Known Issues.
 
-## [1.1.2] — Unreleased (Build 910)
+## [1.1.2] — 2026-11-17 (Build 910)
 
 Full release notes: [docs/releases/v1.1.2.md](docs/releases/v1.1.2.md).
 

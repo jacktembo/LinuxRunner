@@ -1,6 +1,6 @@
 # Building LinuxRunner
 
-Most users install the IPA. These instructions build the **LinuxRunner** scheme in `iSH.xcodeproj`, preserving version **1.1.1**, build **905** and bundle identifier `dev.linuxrunner.app`.
+Most users install the IPA. These instructions build the **LinuxRunner** scheme in `iSH.xcodeproj`, preserving version **1.1.2**, build **910** and bundle identifier `dev.linuxrunner.app`.
 
 ## Tool Requirements
 
@@ -13,7 +13,7 @@ git submodule update --init --recursive --checkout -- deps/libapps deps/libarchi
 scripts/bootstrap-macos.sh
 ```
 
-Once published, select the approved `v1.1.1` revision when reproducing this release. Until then the public repository may still contain the previous version; do not replace a newer local checkout with it. The inherited `deps/linux` gitlink is optional and not used to boot a kernel in the app.
+Once published, select the approved `v1.1.2` revision when reproducing this release. Until then the public repository may still contain the previous version; do not replace a newer local checkout with it. The inherited `deps/linux` gitlink is optional and not used to boot a kernel in the app.
 
 ## Interpreter / Software Variant
 
@@ -24,7 +24,7 @@ scripts/build-ipa.sh --unsigned
 python3 scripts/verify-ipa.py build/releases
 ```
 
-This builds a functional interpreter/software variant. It does not reproduce the Metal/JIT-capable Build 905 release binary.
+This builds a functional interpreter/software variant. It does not reproduce the Metal/JIT-capable Build 910 release binary.
 
 ## Metal / Optional-JIT Variant
 
@@ -56,7 +56,7 @@ git -C "$GPU_DEPS/angle" checkout --detach feebf60fe088ccec3a26a7419d6ac68edf542
 (cd "$GPU_DEPS/angle" && python3 scripts/bootstrap.py && gclient sync)
 ```
 
-The bootstrap creates ANGLE's gclient configuration; sync resolves the pinned checkout's DEPS and tools. Follow the retained ANGLE `doc/DevSetup.md` for platform prerequisites. Do not substitute current dependency revisions.
+virglrenderer's build also needs the Python `yaml` module (`python3 -m pip install pyyaml`). The bootstrap creates ANGLE's gclient configuration; sync resolves the pinned checkout's DEPS and tools. Follow the retained ANGLE `doc/DevSetup.md` for platform prerequisites. Do not substitute current dependency revisions.
 
 After preparing those source checkouts, from the LinuxRunner repository root:
 

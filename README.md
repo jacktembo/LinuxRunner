@@ -146,8 +146,6 @@ LinuxRunner is distributed as an IPA file that you sideload. It is not in the Ap
 
 **About signing:** with a free Apple ID, iOS requires you to re-sign the app every 7 days. A paid Apple Developer account extends this to one year. Keep the same signing identity when you update, so your Linux environments stay in place.
 
-The latest published release is 1.1.1. Version 1.1.2, described here, is on `main` and can be [built from source](#building-from-source) until its release is published.
-
 You do **not** need JIT to install or use LinuxRunner. Back up important files before updating. Details: [Installation and signing](docs/INSTALLATION.md).
 
 ## First steps
